@@ -1,0 +1,42 @@
+<launch>
+
+  <node pkg="extrinsic_latency_calib" exec="extrinsicCalib" name="extrinsicCalib" output="screen">
+    <param name="minRange" value="0.5" />
+    <param name="maxRange" value="10.0" />
+    <param name="angAdjustment" value="0.01" />
+    <param name="voxelSize" value="0.02" />
+    <param name="imageSkipYaw" value="10.0" />
+    <param name="imageSkipNum" value="2" />
+    <param name="camRoll" value="-1.5707963" />
+    <param name="camPitch" value="0.0" />
+    <param name="camYaw" value="-1.5707963" />
+    <param name="camX" value="-0.12" />
+    <param name="camY" value="-0.075" />
+    <param name="camZ" value="0.255" />
+    <param name="is360Cam" value="false" /> <!--360 camera: true, regular camera: false/-->
+    <param name="imageWidth" value="1920" /> <!--For both 360 camera and regular camera/-->
+    <param name="imageHeight" value="640" /> <!--For both 360 camera and regular camera/-->
+    <param name="fx" value="480.0" /> <!--For regular camera only/-->
+    <param name="fy" value="480.0" /> <!--For regular camera only/-->
+    <param name="cx" value="960.5" /> <!--For regular camera only/-->
+    <param name="cy" value="320.5" /> <!--For regular camera only/-->
+    <param name="k1" value="0.0" /> <!--For regular camera only/-->
+    <param name="k2" value="0.0" /> <!--For regular camera only/-->
+    <param name="p1" value="0.0" /> <!--For regular camera only/-->
+    <param name="p2" value="0.0" /> <!--For regular camera only/-->
+    <!-- Habitat pinhole output: native 640x480 intrinsics, no FOV widening -->
+    <param name="habitatWidth" value="640" />
+    <param name="habitatHeight" value="480" />
+    <param name="habitatFx" value="388.1910413097385" />
+    <param name="habitatFy" value="422.0475153598262" />
+    <param name="habitatCx" value="320.0" />
+    <param name="habitatCy" value="240.0" />
+    <param name="habitatScaleXPercent" value="100" /> <!-- raise to narrow horizontally/-->
+    <param name="habitatScaleYPercent" value="100" /> <!-- raise to shrink vertically/-->
+    <param name="outputFolder" value="./habitat_output_360_GS" />
+    <param name="saveOutputs" value="false" />
+    <param name="saveInterval" value="1" />
+    <param name="depthPngScale" value="1000.0" />
+  </node>
+
+</launch>

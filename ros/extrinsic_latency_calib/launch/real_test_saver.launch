@@ -1,0 +1,64 @@
+<launch>
+
+  <!-- Per-bag test folder name, e.g.:
+         ros2 launch extrinsic_latency_calib real_test_saver.launch test:=bldgA_f4
+       -> saves into ${GG_DATA_ROOT:-$HOME/glassguard_data}/bldgA_f4_test/ -->
+  <arg name="test" default="capture" />
+
+  <!-- Real-test dense capture: play a rosbag (+ SLAM stack producing /state_estimation
+       and /registered_scan), and this node saves EVERY processed frame:
+         rgb_%06d.png      360 pano   (Glass_killer batch: -\-batch-glob "rgb_*.png")
+         cloud_%06d.ply    5s-window scan stack, viewer z-up frame
+         pose_%06d.txt     "px py pz qx qy qz qw" (batch _load_frame_pose format)
+         pinhole_%06d.png  pinhole RGB for MonoGlass3D (630x504)
+         camera_config.json / poses.csv
+       Dense frame-to-frame: saveInterval=1, imageSkipNum=1 (~5 Hz at a 10 Hz camera).
+       Set plySaveInterval > 1 to thin only the PLYs and save disk. -->
+  <node pkg="extrinsic_latency_calib" exec="realTestSaver" name="real_test_saver" output="screen">
+    <!-- lidar / stacking -->
+    <param name="minRange" value="0.5" />
+    <param name="maxRange" value="10.0" />
+    <param name="voxelSize" value="0.02" />
+    <param name="stackTimeWindow" value="5.0" />
+    <param name="imageSkipYaw" value="10.0" />
+    <param name="imageSkipNum" value="0" />  <!-- 0 = every camera frame (full bag rate), 1 = every 2nd -->
+    <param name="imageLatencyOffset" value="0.0" />
+
+    <!-- lidar -> camera extrinsics (same as glass_killer.launch) -->
+    <param name="camRoll" value="-1.5707963" />
+    <param name="camPitch" value="0.0" />
+    <param name="camYaw" value="-1.5707963" />
+    <param name="camX" value="-0.12" />
+    <param name="camY" value="-0.075" />
+    <param name="camZ" value="0.255" />
+
+    <!-- 360 pano input -->
+    <param name="is360Cam" value="true" />
+    <param name="imageWidth" value="1920" />
+    <param name="imageHeight" value="640" />
+
+    <!-- pinhole view: config C from the FOV panel — 1260x1008 (5:4), square pixels f=520
+         => H101 x V88 deg. MonoGlass3D downsamples 2x to 504x630 internally; intrinsics
+         are auto-rescaled at inference. -->
+    <param name="pinholeWidth" value="1260" />
+    <param name="pinholeHeight" value="1008" />
+    <param name="pinholeFx" value="520.0" />
+    <param name="pinholeFy" value="520.0" />
+    <param name="pinholeCx" value="630.0" />
+    <param name="pinholeCy" value="504.0" />
+    <param name="pinholeYawDeg" value="0.0" />
+    <param name="pinholePitchDeg" value="0.0" />
+
+    <!-- saving -->
+    <param name="outputFolder" value="${GG_DATA_ROOT:-$HOME/glassguard_data}/$(var test)_test" />
+    <param name="saveOutputs" value="true" />
+    <param name="savePano" value="true" />
+    <param name="savePinhole" value="true" />
+    <param name="savePly" value="true" />
+    <param name="saveInterval" value="2" />     <!-- every 2nd camera frame (5 Hz): pano + pinhole + pose -->
+    <param name="plySaveInterval" value="1" />  <!-- PLY on every saved frame = 5 Hz -->
+    <param name="imageFormat" value="jpg" />    <!-- jpg keeps 10 Hz writes real-time; png ~5x bigger -->
+    <param name="jpegQuality" value="95" />
+  </node>
+
+</launch>

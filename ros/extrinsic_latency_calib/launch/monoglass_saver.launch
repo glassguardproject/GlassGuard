@@ -1,0 +1,54 @@
+<launch>
+
+  <!-- MonoGlass3D data saver: play your rosbag as usual, this node saves per-frame
+       pinhole RGB + camera_config.json + sparse lidar depth + 16-bit depth png +
+       last-5s scan-window PLY + poses.csv.
+       Toggle saveDepth / savePly to false to save disk space. -->
+  <node pkg="extrinsic_latency_calib" exec="monoGlassSaver" name="monoglass_saver" output="screen">
+    <!-- lidar / stacking (same as glass_killer.launch) -->
+    <param name="minRange" value="0.5" />
+    <param name="maxRange" value="10.0" />
+    <param name="voxelSize" value="0.02" />
+    <param name="stackTimeWindow" value="5.0" /> <!-- seconds of registered scans in the sliding stack -->
+    <param name="imageSkipYaw" value="10.0" />
+    <param name="imageSkipNum" value="2" />
+    <param name="imageLatencyOffset" value="0.0" /> <!-- s; retime pose lookup for real-robot camera lag -->
+
+    <!-- lidar -> camera extrinsics (same as glass_killer.launch) -->
+    <param name="camRoll" value="-1.5707963" />
+    <param name="camPitch" value="0.0" />
+    <param name="camYaw" value="-1.5707963" />
+    <param name="camX" value="-0.12" />
+    <param name="camY" value="-0.075" />
+    <param name="camZ" value="0.255" />
+
+    <!-- 360 pano input -->
+    <param name="is360Cam" value="true" />
+    <param name="imageWidth" value="1920" />
+    <param name="imageHeight" value="640" />
+
+    <!-- customizable pinhole view (the MonoGlass3D input image).
+         630x504 = MonoGlass3D's native input (it resizes to H=504, W=630), so the saved
+         RGB/depth/intrinsics feed it directly with NO resize -> pixels, camera_config and
+         pc_depth_map stay consistent for direct comparison.
+         Intrinsics = habitat values rescaled from 640x480 to 630x504 (same FOV). -->
+    <param name="pinholeWidth" value="630" />
+    <param name="pinholeHeight" value="504" />
+    <param name="pinholeFx" value="382.12555" />   <!-- 388.1910413 * 630/640 -->
+    <param name="pinholeFy" value="443.14989" />   <!-- 422.0475154 * 504/480 -->
+    <param name="pinholeCx" value="315.0" />
+    <param name="pinholeCy" value="252.0" />
+    <param name="pinholeYawDeg" value="0.0" />   <!-- view direction: 0=forward, 90=left/right, 180=back -->
+    <param name="pinholePitchDeg" value="0.0" /> <!-- positive looks down -->
+
+    <!-- saving -->
+    <param name="outputFolder" value="./monoglass_output" />
+    <param name="saveOutputs" value="true" />
+    <param name="saveDepth" value="true" />  <!-- false: skip pc_depth_map.txt + 16-bit depth png -->
+    <param name="savePly" value="true" />    <!-- false: skip the 5s-window cloud PLY -->
+    <param name="saveInterval" value="5" />  <!-- save every Nth processed frame -->
+    <param name="depthPngScale" value="1000.0" /> <!-- depth png units: 1000 = mm -->
+    <param name="showWindows" value="false" />
+  </node>
+
+</launch>

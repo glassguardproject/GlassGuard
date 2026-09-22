@@ -1,0 +1,12 @@
+<launch>
+
+  <node pkg="extrinsic_latency_calib" exec="regScanStack" name="regScanStack" output="screen">
+    <param name="stackSeconds" value="5.0" />          <!-- matches RViz Decay Time -->
+    <param name="inputTopic" value="/registered_scan" />
+    <param name="outputTopic" value="/registered_scan_stack" />
+    <param name="saveOutputs" value="false" />          <!-- set true to dump PLYs -->
+    <param name="saveInterval" value="10" />            <!-- save every Nth published stack -->
+    <param name="outputFolder" value="./regscan_stack_output" />
+  </node>
+
+</launch>
