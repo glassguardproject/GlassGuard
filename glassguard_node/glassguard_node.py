@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-glass_killer_ros_node.py
+glassguard_ros_node.py
 
-End-to-end ROS 2 wrapper around the batch_bigmask_4ray_randomopt.py clench
+End-to-end ROS 2 wrapper around the glassguard_core.py clench
 vertical-rectangle plane-fitting pipeline (decision=BIGMASK_VERTICAL_SEED_OVERLAP).
 Instead of reading cloud_*.ply + rgb_*.png from disk and writing PLYs, this node
 runs the algorithm live on ROS messages and PUBLISHES the result (no disk I/O):
 
   subscribes:
-    /glass_killer/cloud   (sensor_msgs/PointCloud2)  -- the camera-frame cloud
-                                                         published by glassKillerNode
+    /glassguard/cloud   (sensor_msgs/PointCloud2)  -- the camera-frame cloud
+                                                         published by glassGuardProvider
     /habitat/rgb          (sensor_msgs/Image, bgr8)  -- the 360 panorama RGB
   publishes:
-    /glass_killer/planes  (sensor_msgs/PointCloud2, xyz+rgb)
+    /glassguard/planes  (sensor_msgs/PointCloud2, xyz+rgb)
                            -- the fitted window planes + normal lines, in the
-                              SAME frame/stamp as /glass_killer/cloud so they
+                              SAME frame/stamp as /glassguard/cloud so they
                               overlay it directly in RViz (no PLY saved).
 
 It always processes the most recent (cloud, image) pair and drops anything that
@@ -25,7 +25,7 @@ Run it in an environment that has BOTH ROS 2 (rclpy) and the sam3/torch stack:
 
   source /opt/ros/jazzy/setup.bash
   source <ROS_WS>/install/setup.bash
-  conda run -n sam3 --no-capture-output python ./glass_killer_ros_node.py
+  conda run -n sam3 --no-capture-output python ./glassguard_ros_node.py
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ from geometry_msgs.msg import TransformStamped, PoseStamped
 from tf2_ros import StaticTransformBroadcaster
 
 
-# Fixed sensor->camera_link mount transform baked into glassKillerNode's cloud:
+# Fixed sensor->camera_link mount transform baked into glassGuardProvider's cloud:
 # the body-frame camera rotation + (x,z,-y) viewer swap collapse to a -90 deg yaw.
 _R_STATIC = np.array([[0.0, 1.0, 0.0],
                       [-1.0, 0.0, 0.0],
@@ -96,13 +96,13 @@ def _quat_to_R(qx: float, qy: float, qz: float, qw: float) -> np.ndarray:
 
 # Reuse the newest batch pipeline (clench vertical-rectangle algorithm,
 # decision=BIGMASK_VERTICAL_SEED_OVERLAP): importing it sets up sys.path, loads the
-# glass_frame_ring / glass_killer_deterministic / debug_combined_frame helpers, and
+# glass_frame_ring / glassguard_deterministic / debug_combined_frame helpers, and
 # exposes every function we need. main() only runs under __main__, so import is
 # side-effect-safe here. This node runs the algorithm live and PUBLISHES results;
 # it never writes any PNG/PLY to disk.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # parent: bsp, pda
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))                    # this folder: transport
-import batch_bigmask_4ray_randomopt as bsp
+import glassguard_core as bsp
 import pinhole_da2_align as pda
 import pipeline_transport as tx
 from std_msgs.msg import String
@@ -112,7 +112,7 @@ from std_msgs.msg import String
 # Config: defaults mirror the working command at the bottom of the batch file.
 # Override any of these with ROS params of the same name (dashes -> underscores).
 # --------------------------------------------------------------------------- #
-def build_args(node: "GlassKillerNode") -> SimpleNamespace:
+def build_args(node: "GlassGuardNode") -> SimpleNamespace:
     g = lambda name, default: node.declare_parameter(name, default).value
 
     # Defaults: INT8 SAM3, 2816 student (per request).
@@ -222,7 +222,7 @@ def build_args(node: "GlassKillerNode") -> SimpleNamespace:
 
     saved = sys.argv
     try:
-        sys.argv = ["glass_killer_ros_node"] + argv
+        sys.argv = ["glassguard_ros_node"] + argv
         args = bsp.parse_args()
     finally:
         sys.argv = saved
@@ -378,12 +378,12 @@ def _make_xyzi_rgb_cloud(header: Header, xyz: np.ndarray, intensity: float) -> P
     return msg
 
 
-class GlassKillerNode(Node):
+class GlassGuardNode(Node):
     def __init__(self):
-        super().__init__("glass_killer_plane_node")
+        super().__init__("glassguard_node")
         # PIPELINE role: "mono" = original single-process behavior; "perception" = run
-        # detect+geometry, publish placed planes to /gkpipe/geom and SKIP the tracker;
-        # "mapping" = subscribe /gkpipe/geom, run the tracker/evict + publish the map.
+        # detect+geometry, publish placed planes to /ggpipe/geom and SKIP the tracker;
+        # "mapping" = subscribe /ggpipe/geom, run the tracker/evict + publish the map.
         self.role = str(self.declare_parameter("role", "mono").value)
         self._map_lock = threading.Lock()
         self._geom_latest = None
@@ -411,7 +411,7 @@ class GlassKillerNode(Node):
         self._img_buf = deque(maxlen=12)     # (stamp_sec, Image) -> match the image to the CLOUD stamp
         self._img_match_gap = 0.0
         self._prev_proc_stamp = 0.0      # cloud stamp of the previous PROCESSED frame (SYNC line)
-        self._latest_last_scan = None   # newest SINGLE scan (from /glass_killer/last_scan) for DA2 align
+        self._latest_last_scan = None   # newest SINGLE scan (from /glassguard/last_scan) for DA2 align
         self._pinhole_remap = None      # cached equirect->pinhole cv2.remap maps (built once)
         self._busy = False
         # Watchdog timestamps (wall clock) so a background thread can tell whether the
@@ -424,10 +424,10 @@ class GlassKillerNode(Node):
         sensor_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                                 history=HistoryPolicy.KEEP_LAST)
         self.sub_cloud = self.create_subscription(
-            PointCloud2, "/glass_killer/cloud", self._on_cloud, sensor_qos)
+            PointCloud2, "/glassguard/cloud", self._on_cloud, sensor_qos)
         # Newest SINGLE scan (no 5s stacking -> no glass see-through) for the DA2 pinhole alignment.
         self.sub_last_scan = self.create_subscription(
-            PointCloud2, "/glass_killer/last_scan", self._on_last_scan, sensor_qos)
+            PointCloud2, "/glassguard/last_scan", self._on_last_scan, sensor_qos)
         # FLOOR evidence comes from the SAM3 'floor' mask (see _process). OBSTACLE evidence (the orange
         # cells) comes from the driver's REGISTERED /terrain_map: it is published in the MAP frame with
         # intensity = height above ground, so its points are world-consistent (they do NOT move with the
@@ -446,7 +446,7 @@ class GlassKillerNode(Node):
             self._on_terrain, sensor_qos)
         self.sub_image = self.create_subscription(
             Image, "/habitat/rgb", self._on_image, sensor_qos)
-        # Camera pose in map (republished by glassKillerNode) -> lets us emit
+        # Camera pose in map (republished by glassGuardProvider) -> lets us emit
         # planes directly in the map frame, independent of the TF tree.
         self._latest_pose = None
         # Buffer recent poses WITH timestamps so a frame can be transformed by the pose from the
@@ -477,29 +477,29 @@ class GlassKillerNode(Node):
         # (the odom search re-rotated every output by the image<->newest-scan gap, 0-100 ms/frame).
         # depth 16: still find the matching entry after being blocked in inference for a while.
         self.sub_cloud_pose = self.create_subscription(
-            PoseStamped, "/glass_killer/cloud_pose", self._on_cloud_pose,
+            PoseStamped, "/glassguard/cloud_pose", self._on_cloud_pose,
             QoSProfile(depth=16, reliability=ReliabilityPolicy.RELIABLE,
                        history=HistoryPolicy.KEEP_LAST))
         self.publish_frame = self.declare_parameter("publish_frame", "map").value
         # Debug mask-overlay images (big + small masks). OFF by default: rendering findContours +
         # alpha-blend per mask on the full pano and publishing it costs ~150-300ms/frame. Set
-        # publish_overlays:=true to view /glass_killer/big_masks and /small_masks in RViz.
+        # publish_overlays:=true to view /glassguard/big_masks and /small_masks in RViz.
         self.publish_overlays = bool(self.declare_parameter("publish_overlays", False).value)
         # Keep the last N rounds of planes visible at once (so a window seen in 2
         # consecutive runs shows both, instead of each frame flashing on/off).
         self.stack_rounds = int(self.declare_parameter("stack_rounds", 2).value)
         self._plane_hist = deque(maxlen=max(1, self.stack_rounds))
         self._seed_hist = deque(maxlen=max(1, self.stack_rounds))
-        self.pub_planes = self.create_publisher(PointCloud2, "/glass_killer/planes", 2)
+        self.pub_planes = self.create_publisher(PointCloud2, "/glassguard/planes", 2)
         # Per-mask-colored outward seed points (the "mask color" dots).
-        self.pub_seeds = self.create_publisher(PointCloud2, "/glass_killer/seeds", 2)
+        self.pub_seeds = self.create_publisher(PointCloud2, "/glassguard/seeds", 2)
         # THIS-frame-only, world(map)-frame streams for the separate top-down map node (NOT stacked,
         # so the accumulator can add each round exactly once). Only computed when subscribed.
-        self.pub_map_seeds = self.create_publisher(PointCloud2, "/glass_killer/map_seeds", 2)
-        self.pub_map_jump = self.create_publisher(PointCloud2, "/glass_killer/map_jump", 2)
+        self.pub_map_seeds = self.create_publisher(PointCloud2, "/glassguard/map_seeds", 2)
+        self.pub_map_jump = self.create_publisher(PointCloud2, "/glassguard/map_jump", 2)
         # SAM3 big-mask + small-mask overlays as images (view in RViz Image display).
-        self.pub_big_masks = self.create_publisher(Image, "/glass_killer/big_masks", 2)
-        self.pub_small_masks = self.create_publisher(Image, "/glass_killer/small_masks", 2)
+        self.pub_big_masks = self.create_publisher(Image, "/glassguard/big_masks", 2)
+        self.pub_small_masks = self.create_publisher(Image, "/glassguard/small_masks", 2)
 
         # Bridge the camera-local plane frame into the existing map tree, so
         # planes render alongside /registered_scan with Fixed Frame = map.
@@ -529,7 +529,7 @@ class GlassKillerNode(Node):
         # writes the same per-frame files the batch process_frame produces.
         self.debug_save = bool(self.declare_parameter("debug_save", False).value)
         self.debug_save_dir = str(self.declare_parameter(
-            "debug_save_dir", "./glass_killer_ros_debug").value)
+            "debug_save_dir", "./glassguard_ros_debug").value)
         self._save_counter = 0
         # torch.cuda.empty_cache() every N inferences (0 = never, keep the pool warm). N=1 -> nvidia-smi
         # reads the true ~1 GB live size at a per-frame re-malloc cost; larger N trades less often.
@@ -547,7 +547,7 @@ class GlassKillerNode(Node):
         # to turn it back on. (SPACE keysave is still available on demand.)
         self.save_topdown_horiz = bool(self.declare_parameter("save_topdown_horiz", False).value)
         self._hz_dir = str(self.declare_parameter(
-            "topdown_horiz_dir", "./glass_killer_ros_topdown_horiz").value)
+            "topdown_horiz_dir", "./glassguard_ros_topdown_horiz").value)
         self._hz_q = None
         if self.save_topdown_horiz and self._hz_dir:
             os.makedirs(self._hz_dir, exist_ok=True)
@@ -562,7 +562,7 @@ class GlassKillerNode(Node):
         self.args.clench_debug_tries = True
         self._recent = deque(maxlen=5)
         self._keysave_dir = str(self.declare_parameter(
-            "keysave_dir", "./glass_killer_ros_keysave").value)
+            "keysave_dir", "./glassguard_ros_keysave").value)
         # keysave_full:=true (default) -> SPACE saves EVERYTHING (the original full debug set).
         # keysave_full:=false -> minimal snapshot: topdown (+root copies) + seed PLY + accumulated-floor
         # PLY only (plane-compete / seed-vs-floor debugging).
@@ -576,7 +576,7 @@ class GlassKillerNode(Node):
         # (the seed-vs-floor tug map) once per inference to auto_map_dir on its own thread -- no key
         # press needed. Non-blocking (drops a frame if the writer falls behind).
         self.auto_map_dir = str(self.declare_parameter(
-            "auto_map_dir", "./glass_killer_ros_globalmap").value)
+            "auto_map_dir", "./glassguard_ros_globalmap").value)
         self.save_auto_map = bool(self.declare_parameter("save_auto_map", True).value)
         if self.viz_full:
             self.save_auto_map = False   # viz_full is a LIVE-ONLY demo: publish, never write to disk
@@ -589,7 +589,7 @@ class GlassKillerNode(Node):
         # LOCAL TUG VIEW: per-frame PNG of the seed-vs-floor tug count in a small window around the robot.
         self.save_local_tug = bool(self.declare_parameter("save_local_tug", False).value)
         self.local_tug_dir = str(self.declare_parameter(
-            "local_tug_dir", "./glass_killer_ros_localtug").value)
+            "local_tug_dir", "./glassguard_ros_localtug").value)
         self.local_tug_half = int(self.declare_parameter("local_tug_half_cells", 50).value)  # +/- cells
         if self.save_local_tug and self.local_tug_dir:
             os.makedirs(self.local_tug_dir, exist_ok=True)
@@ -604,37 +604,37 @@ class GlassKillerNode(Node):
             # still skips when the sequence has not advanced, so this costs nothing when idle.
             self.topdown_hz = float(self.declare_parameter("viz_full_hz", 30.0).value)
         # OFF by default: rendering the top-down Image holds the GIL and slows the live inference. Set
-        # publish_topdown:=true to view /glass_killer/topdown_map again.
+        # publish_topdown:=true to view /glassguard/topdown_map again.
         self.publish_topdown = bool(self.declare_parameter("publish_topdown", False).value)
-        self.pub_topdown = self.create_publisher(Image, "/glass_killer/topdown_map", 1)
+        self.pub_topdown = self.create_publisher(Image, "/glassguard/topdown_map", 1)
         # DEMO (viz_full:=true): the four --full-visual demo images, published LIVE instead of saved.
         # They render on the existing async panel thread, so inference is never blocked.
         if self.viz_full:                 # declared earlier (it also bldgA the uniform recolor)
-            self.pub_viz_tug = self.create_publisher(Image, "/glass_killer/viz/floor_seed_tug", 1)
-            self.pub_viz_compete = self.create_publisher(Image, "/glass_killer/viz/plane_compete", 1)
-            self.pub_viz_pillars = self.create_publisher(Image, "/glass_killer/viz/pillars_topdown", 1)
-            self.pub_viz_silhouette = self.create_publisher(Image, "/glass_killer/viz/silhouette_allmasks", 2)
-            self.pub_viz_spill = self.create_publisher(Image, "/glass_killer/viz/multiview_spill", 2)
-            self.pub_viz_rgb = self.create_publisher(Image, "/glass_killer/viz/rgb_pano", 2)
-            self.pub_viz_lidar = self.create_publisher(Image, "/glass_killer/viz/lidar_pano", 2)
+            self.pub_viz_tug = self.create_publisher(Image, "/glassguard/viz/floor_seed_tug", 1)
+            self.pub_viz_compete = self.create_publisher(Image, "/glassguard/viz/plane_compete", 1)
+            self.pub_viz_pillars = self.create_publisher(Image, "/glassguard/viz/pillars_topdown", 1)
+            self.pub_viz_silhouette = self.create_publisher(Image, "/glassguard/viz/silhouette_allmasks", 2)
+            self.pub_viz_spill = self.create_publisher(Image, "/glassguard/viz/multiview_spill", 2)
+            self.pub_viz_rgb = self.create_publisher(Image, "/glassguard/viz/rgb_pano", 2)
+            self.pub_viz_lidar = self.create_publisher(Image, "/glassguard/viz/lidar_pano", 2)
             # ground LINE of every tracked plane, drawn in its owning BIG-MASK colour
-            self.pub_viz_lines = self.create_publisher(PointCloud2, "/glass_killer/viz/plane_lines", 2)
+            self.pub_viz_lines = self.create_publisher(PointCloud2, "/glassguard/viz/plane_lines", 2)
             # the 4 corner/derived reference rays per big mask, in that mask's colour
-            self.pub_viz_rays = self.create_publisher(PointCloud2, "/glass_killer/viz/mask_rays", 2)
+            self.pub_viz_rays = self.create_publisher(PointCloud2, "/glassguard/viz/mask_rays", 2)
             # planes REMOVED by the global filters, coloured by which mechanism removed them
-            self.pub_viz_evicted = self.create_publisher(PointCloud2, "/glass_killer/viz/evicted_planes", 2)
+            self.pub_viz_evicted = self.create_publisher(PointCloud2, "/glassguard/viz/evicted_planes", 2)
             # per-PANE vertical lines: each small mask owned by a big mask, intersected with that
             # big mask's ACCEPTED plane -> the pane's left/right extents ON the plane (mullions)
-            self.pub_viz_pane_lines = self.create_publisher(PointCloud2, "/glass_killer/viz/pane_lines", 2)
+            self.pub_viz_pane_lines = self.create_publisher(PointCloud2, "/glassguard/viz/pane_lines", 2)
             self.get_logger().info(
                 f"[viz_full] role={self.role}: viz publishers up "
                 f"(images: tug/compete/pillars/silhouette/spill/rgb/lidar; clouds: plane_lines, "
                 f"mask_rays, evicted_planes, pane_lines) -- images+pane_lines+mask_rays are fed by "
                 f"PERCEPTION, tug/compete/spill/plane_lines/evicted by MAPPING")
         # Cross-frame ACCUMULATED plane map (world/map frame). ON BY DEFAULT (enable_global_map:=false
-        # to disable): /glass_killer/global_planes is the RViz wall cloud, and the SAME dense patches go
+        # to disable): /glassguard/global_planes is the RViz wall cloud, and the SAME dense patches go
         # out on /added_obstacles so the local planner treats the glass as hard obstacles (that is the
-        # point of Glass Killer -- glass is invisible to LiDAR). publish_added_obstacles:=false to run
+        # point of GlassGuard -- glass is invisible to LiDAR). publish_added_obstacles:=false to run
         # visualization-only. The two-panel IMAGE is gated separately by publish_global_map_image.
         self.enable_global_map = bool(self.declare_parameter("enable_global_map", True).value)
         self.publish_global_map_image = bool(self.declare_parameter("publish_global_map_image", False).value)
@@ -724,7 +724,7 @@ class GlassKillerNode(Node):
         # RIGHT = RGB + reprojected plane silhouettes vs SAM mask (high-spill planes marked red).
         self.save_reproject_panel = bool(self.declare_parameter("save_reproject_panel", False).value)
         self.reproject_panel_dir = str(self.declare_parameter(
-            "reproject_panel_dir", "./glass_killer_ros_reproject").value)
+            "reproject_panel_dir", "./glassguard_ros_reproject").value)
         if self.save_reproject_panel:
             os.makedirs(self.reproject_panel_dir, exist_ok=True)
         self._plane_tracker = bsp._PlaneTracker(self.args)
@@ -738,7 +738,7 @@ class GlassKillerNode(Node):
         # FINAL / OVERVIEW map: a SECOND, independent plane accumulator fed the same detections as the
         # current map, but with a LOOSER (smaller) spill-eviction radius -> distant planes are never
         # spill-pruned, so driving around builds up a stable overall plane map. Published on its own
-        # topic (/glass_killer/final_global_planes); the current map stays on /glass_killer/global_planes.
+        # topic (/glassguard/final_global_planes); the current map stays on /glassguard/global_planes.
         self.enable_final_map = bool(self.declare_parameter("enable_final_map", True).value)
         self._final_tracker = bsp._PlaneTracker(self.args)
         self._final_tracker.spill_dist_max = float(
@@ -747,8 +747,8 @@ class GlassKillerNode(Node):
         self._final_tracker.spill_thresh = float(
             self.declare_parameter("final_spill_thresh", 0.35).value)
         self.pub_final_global_planes = self.create_publisher(
-            PointCloud2, "/glass_killer/final_global_planes", 2)
-        self.pub_global_map = self.create_publisher(Image, "/glass_killer/global_map", 1)
+            PointCloud2, "/glassguard/final_global_planes", 2)
+        self.pub_global_map = self.create_publisher(Image, "/glassguard/global_map", 1)
         self.global_plane_height_m = float(self.declare_parameter("global_plane_height_m", 2.0).value)
         # Metric sample pitch of the dense wall patches (both the RViz cloud and the obstacle cloud):
         # points every grid_m along AND up the wall, so plane size drives point count.
@@ -780,7 +780,7 @@ class GlassKillerNode(Node):
             self.declare_parameter("evict_suppress_lat_m", 0.4).value)
         self._evict_suppress = []
         self._prev_cur_pids = {}
-        self.pub_global_planes = self.create_publisher(PointCloud2, "/glass_killer/global_planes", 2)
+        self.pub_global_planes = self.create_publisher(PointCloud2, "/glassguard/global_planes", 2)
         # OBSTACLE injection mode:
         #  "scan"  (default) -> publish glass wall points onto /registered_scan so the driver's
         #          terrain-analysis processes them like any LiDAR return: it does ground segmentation
@@ -814,7 +814,7 @@ class GlassKillerNode(Node):
             _t.start()
         # RViz copy of the obstacle walls (same dense points as /added_obstacles, dimmed track color)
         # so the original colored-plane visual and the injected wall can be compared side by side.
-        self.pub_obstacle_walls = self.create_publisher(PointCloud2, "/glass_killer/obstacle_walls", 2)
+        self.pub_obstacle_walls = self.create_publisher(PointCloud2, "/glassguard/obstacle_walls", 2)
         # GT PLANES overlay (debug): densely sampled annotated GT rectangles, published on a
         # slow timer in the map frame -- WHITE points, so live coverage gaps are visible in rviz.
         self._gt_cloud_msg = None
@@ -863,10 +863,10 @@ class GlassKillerNode(Node):
                     _gt_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                                          history=HistoryPolicy.KEEP_LAST,
                                          durability=DurabilityPolicy.TRANSIENT_LOCAL)
-                    self.pub_gt_planes = self.create_publisher(PointCloud2, "/glass_killer/gt_planes", _gt_qos)
+                    self.pub_gt_planes = self.create_publisher(PointCloud2, "/glassguard/gt_planes", _gt_qos)
                     self._pub_gt_planes()                 # publish IMMEDIATELY at startup
                     self.create_timer(2.0, self._pub_gt_planes)
-                    self.get_logger().info(f"GT planes overlay: {len(_gt)} rects, {len(_P)} pts -> /glass_killer/gt_planes")
+                    self.get_logger().info(f"GT planes overlay: {len(_gt)} rects, {len(_P)} pts -> /glassguard/gt_planes")
             except Exception as e:
                 self.get_logger().warn(f"GT planes overlay failed to load ({_gt_json}): {e}")
         # ---- CANONICAL RUN: one recorded reference run per scene owns the scene position ----
@@ -938,11 +938,11 @@ class GlassKillerNode(Node):
         threading.Thread(target=self._topdown_worker, daemon=True).start()
 
         # Save the RAW algorithm INPUT for every inference (cloud_XXXXXX.ply + rgb_XXXXXX.png, the
-        # exact format batch_bigmask_4ray_randomopt.py reads via --habitat-dir), so the whole run
+        # exact format glassguard_core.py reads via --habitat-dir), so the whole run
         # can be replayed offline with the usual batch command. Written on its own thread.
         self.save_input = bool(self.declare_parameter("save_input", False).value)
         self.input_save_dir = str(self.declare_parameter(
-            "input_save_dir", "./glass_killer_ros_input").value)
+            "input_save_dir", "./glassguard_ros_input").value)
         self._input_q = None
         if self.save_input and self.input_save_dir:
             os.makedirs(self.input_save_dir, exist_ok=True)
@@ -950,18 +950,18 @@ class GlassKillerNode(Node):
             self._input_q = queue.Queue(maxsize=8)     # drop-on-full so disk never backs up latency
             threading.Thread(target=self._input_saver_worker, daemon=True).start()
             self.get_logger().info(f"algorithm input -> {self.input_save_dir} "
-                                   f"(replay: python batch_bigmask_4ray_randomopt.py --habitat-dir {self.input_save_dir} ...)")
+                                   f"(replay: python glassguard_core.py --habitat-dir {self.input_save_dir} ...)")
 
-        self.get_logger().info("glass_killer_plane_node ready; waiting for /glass_killer/cloud + /habitat/rgb")
+        self.get_logger().info("glassguard_node ready; waiting for /glassguard/cloud + /habitat/rgb")
 
         # ---- PIPELINE wiring (created last, after trackers + output publishers exist) ----
-        self._pub_geom = self.create_publisher(String, "/gkpipe/geom", 1)   # perception -> mapping
+        self._pub_geom = self.create_publisher(String, "/ggpipe/geom", 1)   # perception -> mapping
         if self.role == "mapping":
-            self.create_subscription(String, "/gkpipe/geom", self._on_geom, 1)
+            self.create_subscription(String, "/ggpipe/geom", self._on_geom, 1)
             threading.Thread(target=self._mapping_worker, daemon=True).start()
-            self.get_logger().info("[pipeline] MAPPING role: tracker fed from /gkpipe/geom")
+            self.get_logger().info("[pipeline] MAPPING role: tracker fed from /ggpipe/geom")
         elif self.role == "perception":
-            self.get_logger().info("[pipeline] PERCEPTION role: placed planes -> /gkpipe/geom")
+            self.get_logger().info("[pipeline] PERCEPTION role: placed planes -> /ggpipe/geom")
 
     # ============================ PIPELINE: perception -> mapping ============================
     def _viz_pack_extra(self, big_idx, big_masks_full, small_idx, small_masks_full, horiz_by_mask):
@@ -1494,7 +1494,7 @@ class GlassKillerNode(Node):
         # Save a DA2 | BEFORE | AFTER alignment panel EACH frame that aligns (opt-in; off in running mode).
         self.save_align_panel = bool(self.declare_parameter("save_align_panel", False).value)
         self._align_panel_dir = str(self.declare_parameter(
-            "align_panel_dir", "./glass_killer_ros_align").value)
+            "align_panel_dir", "./glassguard_ros_align").value)
         self.get_logger().info(f"Models ready in {time.perf_counter() - t0:.1f}s")
 
     def _on_cloud(self, msg: PointCloud2):
@@ -1558,11 +1558,11 @@ class GlassKillerNode(Node):
                     f"(likely a CUDA OOM/wedge or a huge cloud); consider lowering "
                     f"max_cloud_points or the C++ stackTimeWindow")
             elif t_cloud == 0.0:
-                self.get_logger().warn("[watchdog] no /glass_killer/cloud received yet (is the C++ node / launch up?)")
+                self.get_logger().warn("[watchdog] no /glassguard/cloud received yet (is the C++ node / launch up?)")
             elif (now - t_cloud) > period:
                 self.get_logger().warn(
-                    f"[watchdog] idle: no /glass_killer/cloud for {now - t_cloud:.1f}s "
-                    f"(upstream stopped? check `ros2 topic hz /glass_killer/cloud`)")
+                    f"[watchdog] idle: no /glassguard/cloud for {now - t_cloud:.1f}s "
+                    f"(upstream stopped? check `ros2 topic hz /glassguard/cloud`)")
             # healthy: stay silent (only the per-frame "inference ..." line is printed)
 
     def _on_image(self, msg: Image):
@@ -1626,7 +1626,7 @@ class GlassKillerNode(Node):
     def _tick(self):
         if self.role == "mapping":
             return                                   # mapping process does no perception; it
-            #                                          runs the tracker from /gkpipe/geom instead
+            #                                          runs the tracker from /ggpipe/geom instead
         with self._lock:
             if self._busy or self._latest_cloud is None or self._latest_image is None:
                 return
@@ -1730,7 +1730,7 @@ class GlassKillerNode(Node):
             H_orig, W_orig = bgr.shape[:2]              # downstream sizes = detector image
             # publish the DETECTOR'S pinhole view so rviz shows what the method actually sees
             if not hasattr(self, "pub_pinhole_img"):
-                self.pub_pinhole_img = self.create_publisher(Image, "/glass_killer/pinhole_image", 2)
+                self.pub_pinhole_img = self.create_publisher(Image, "/glassguard/pinhole_image", 2)
             self._publish_image(self.pub_pinhole_img, bgr)
         pil_img = PILImage.fromarray(cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB))
         _pt("rgb")
@@ -2533,7 +2533,7 @@ class GlassKillerNode(Node):
         self._pub(publisher, _make_xyzrgb_cloud(out, xyz, rgb))
 
     def _publish_planes(self, src_header: Header, xyz: np.ndarray, rgb: np.ndarray):
-        # When the global map is on, /glass_killer/planes is driven by the TRACKER in
+        # When the global map is on, /glassguard/planes is driven by the TRACKER in
         # _publish_global_planes (so it respects eviction). Skip the per-frame stacked placements here
         # -- otherwise an evicted plane would linger in the stack visual.
         if self.enable_global_map:
@@ -3104,9 +3104,9 @@ class GlassKillerNode(Node):
 
     def _publish_global_planes(self, src_header: Header, tracks, pose, track_vr=None):
         """Publish the accumulated tracks as world(map)-frame clouds, on THREE topics:
-          /glass_killer/global_planes   -- the ORIGINAL colored patch visual (fixed su x sv samples,
+          /glassguard/global_planes   -- the ORIGINAL colored patch visual (fixed su x sv samples,
                                            +/- half global_plane_height_m around the ground line).
-          /glass_killer/obstacle_walls  -- RViz copy of the OBSTACLE walls: dense metric-pitch patches
+          /glassguard/obstacle_walls  -- RViz copy of the OBSTACLE walls: dense metric-pitch patches
                                            over each track's observed height range, colored like the
                                            track but dimmed, so the two visuals can be compared.
           /added_obstacles              -- the same dense walls as PointXYZI (intensity=200) for the
@@ -3209,7 +3209,7 @@ class GlassKillerNode(Node):
             except Exception as e:
                 self.get_logger().warn(f"[viz_full] plane lines failed: {e}",
                                        throttle_duration_sec=5.0)
-        # Drive /glass_killer/planes from the TRACKER too, so an EVICTED plane disappears from BOTH
+        # Drive /glassguard/planes from the TRACKER too, so an EVICTED plane disappears from BOTH
         # topics (the per-frame _publish_planes is skipped while the global map is on).
         self.pub_planes.publish(_make_xyzrgb_cloud(out, xyz, _viz_recolor(rgb)))
         oxyz = (np.concatenate(oxyz_parts, 0).astype(np.float32)
@@ -3242,7 +3242,7 @@ class GlassKillerNode(Node):
 
     def _publish_final_planes(self, src_header: Header, tracks, pose, track_vr=None):
         """Publish the FINAL/OVERVIEW map's accumulated tracks as the colored plane visual only, on
-        /glass_killer/final_global_planes. Same colored-patch style as the current map's global_planes,
+        /glassguard/final_global_planes. Same colored-patch style as the current map's global_planes,
         and, when obstacle_from_final (default), ALSO the /added_obstacles planner feed --
         the persistence-biased map is what navigation consumes."""
         out = Header(); out.stamp = src_header.stamp; out.frame_id = "map"
@@ -3579,7 +3579,7 @@ class GlassKillerNode(Node):
     def _write_input_conventions(self, out_dir):
         """Drop a CONVENTIONS.md in the input dir so another agent can decode the ply/rgb/depth/pose."""
         txt = (
-            "# glass_killer input conventions\n\n"
+            "# glassguard input conventions\n\n"
             "Per-frame (XXXXXX = frame id), same instant:\n"
             "  cloud_XXXXXX.ply  raw 3D points (xyzrgb ascii; rgb is gray placeholder, ignore)\n"
             "  rgb_XXXXXX.png    equirectangular panorama, OpenCV BGR\n"
@@ -3782,7 +3782,7 @@ class GlassKillerNode(Node):
                     bgr, it["big_masks_full"], it["mask_ray_records"])
             except Exception as e:
                 self.get_logger().warn(f"[keysave] curve-repair overlay failed for frame {fid}: {e}")
-            # small-mask overlay PNG (matches the /glass_killer/small_masks topic)
+            # small-mask overlay PNG (matches the /glassguard/small_masks topic)
             cv2.imwrite(os.path.join(frame_dir, f"small_masks_frame{fid:06d}.png"),
                         self._render_mask_overlay(bgr, it["small_idx"], it["small_masks_full"]))
             # DA2 pinhole<->lidar alignment BEFORE|AFTER panel (original vs transformed lidar depth dots).
@@ -4245,7 +4245,7 @@ class GlassKillerNode(Node):
 
 def main():
     rclpy.init()
-    node = GlassKillerNode()
+    node = GlassGuardNode()
     # SINGLE-THREADED executor, deliberately. A MultiThreadedExecutor was tried to stop the pose
     # feed starving during inference (it did: pose_gap 55ms -> 15ms). But with the sensor callbacks
     # on separate threads the cloud and image streams advance INDEPENDENTLY, so a _tick could pair
@@ -4269,7 +4269,7 @@ if __name__ == "__main__":
 
 
 # # terminal 1 — the C++ provider (5-sec stacked cloud + rgb + pose, no disk writes)
-# ros2 launch extrinsic_latency_calib glass_killer.launch
+# ros2 launch extrinsic_latency_calib glassguard.launch
 
 # # terminal 2 — the algorithm node (int8 SAM 2816, clench, publish-only)
 # source /opt/ros/jazzy/setup.bash
@@ -4279,9 +4279,9 @@ if __name__ == "__main__":
 
 # source /opt/ros/jazzy/setup.bash
 # source <ROS_WS>/install/setup.bash
-# conda run -n sam3 --no-capture-output python ./glass_killer_ros_node.py --ros-args -p use_da2:=false -p save_input:=true
+# conda run -n sam3 --no-capture-output python ./glassguard_ros_node.py --ros-args -p use_da2:=false -p save_input:=true
 
-# run glass killer:
+# run GlassGuard:
 # source /opt/ros/jazzy/setup.bash
 # source <ROS_WS>/install/setup.bash
-# conda run -n sam3 --no-capture-output python ./glass_killer_ros_node.py --ros-args -p use_da2:=false
+# conda run -n sam3 --no-capture-output python ./glassguard_ros_node.py --ros-args -p use_da2:=false

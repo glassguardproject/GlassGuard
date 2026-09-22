@@ -280,7 +280,7 @@ void imageHandler(const sensor_msgs::msg::Image::ConstSharedPtr imageIn)
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
-  nh = rclcpp::Node::make_shared("Glass_killer_node");
+  nh = rclcpp::Node::make_shared("glassguard_provider");
 
   // Publish ONLY Habitat pinhole outputs
   auto pub_rgb   = nh->create_publisher<sensor_msgs::msg::Image>("/habitat/rgb", 10);
@@ -288,11 +288,11 @@ int main(int argc, char** argv)
   auto pub_pose  = nh->create_publisher<geometry_msgs::msg::PoseStamped>("/habitat/state_estimation", 10);
   // The EXACT pose each published cloud was de-rotated with (see the publish block). depth 16 so
   // the consumer still finds the matching entry after it has been blocked in inference for a while.
-  auto pub_cloud_pose = nh->create_publisher<geometry_msgs::msg::PoseStamped>("/glass_killer/cloud_pose", 16);
+  auto pub_cloud_pose = nh->create_publisher<geometry_msgs::msg::PoseStamped>("/glassguard/cloud_pose", 16);
   // Same as extrinsicCalib, plus: publish the exact cloud that gets saved to PLY.
-  auto pub_cloud = nh->create_publisher<sensor_msgs::msg::PointCloud2>("/glass_killer/cloud", 2);
-  // Newest SINGLE scan (same camera-centered viewer frame as /glass_killer/cloud) for DA2 alignment.
-  auto pub_last_scan = nh->create_publisher<sensor_msgs::msg::PointCloud2>("/glass_killer/last_scan", 2);
+  auto pub_cloud = nh->create_publisher<sensor_msgs::msg::PointCloud2>("/glassguard/cloud", 2);
+  // Newest SINGLE scan (same camera-centered viewer frame as /glassguard/cloud) for DA2 alignment.
+  auto pub_last_scan = nh->create_publisher<sensor_msgs::msg::PointCloud2>("/glassguard/last_scan", 2);
 
   // Params
   nh->declare_parameter<double>("minRange", minRange);

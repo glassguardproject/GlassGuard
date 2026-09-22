@@ -80,7 +80,7 @@ Visualization Manager:
       Filter size: 10
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/seeds
+      Value: /glassguard/seeds
     Use Fixed Frame: true
     Use rainbow: true
     Value: true
@@ -114,7 +114,7 @@ Visualization Manager:
       Filter size: 10
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/planes
+      Value: /glassguard/planes
     Use Fixed Frame: true
     Use rainbow: true
     Value: true
@@ -148,7 +148,7 @@ Visualization Manager:
       Filter size: 10
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/global_planes
+      Value: /glassguard/global_planes
     Use Fixed Frame: true
     Use rainbow: true
     Value: true
@@ -182,7 +182,7 @@ Visualization Manager:
       Filter size: 10
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/plane_lines
+      Value: /glassguard/viz/plane_lines
     Use Fixed Frame: true
     Use rainbow: true
     Value: true
@@ -216,7 +216,7 @@ Visualization Manager:
       Filter size: 10
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/mask_rays
+      Value: /glassguard/viz/mask_rays
     Use Fixed Frame: true
     Use rainbow: true
     Value: true
@@ -250,7 +250,7 @@ Visualization Manager:
       Filter size: 10
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/evicted_planes
+      Value: /glassguard/viz/evicted_planes
     Use Fixed Frame: true
     Use rainbow: true
     Value: true
@@ -284,7 +284,7 @@ Visualization Manager:
       Filter size: 10
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/pane_lines
+      Value: /glassguard/viz/pane_lines
     Use Fixed Frame: true
     Use rainbow: true
     Value: true
@@ -328,7 +328,7 @@ Visualization Manager:
       Durability Policy: Volatile
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/floor_seed_tug
+      Value: /glassguard/viz/floor_seed_tug
     Value: true
   - Class: rviz_default_plugins/Image
     Enabled: true
@@ -342,7 +342,7 @@ Visualization Manager:
       Durability Policy: Volatile
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/plane_compete
+      Value: /glassguard/viz/plane_compete
     Value: true
   - Class: rviz_default_plugins/Image
     Enabled: true
@@ -356,7 +356,7 @@ Visualization Manager:
       Durability Policy: Volatile
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/pillars_topdown
+      Value: /glassguard/viz/pillars_topdown
     Value: true
   - Class: rviz_default_plugins/Image
     Enabled: true
@@ -370,7 +370,7 @@ Visualization Manager:
       Durability Policy: Volatile
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/silhouette_allmasks
+      Value: /glassguard/viz/silhouette_allmasks
     Value: true
   - Class: rviz_default_plugins/Image
     Enabled: true
@@ -384,7 +384,7 @@ Visualization Manager:
       Durability Policy: Volatile
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/multiview_spill
+      Value: /glassguard/viz/multiview_spill
     Value: true
   - Class: rviz_default_plugins/Image
     Enabled: true
@@ -398,7 +398,7 @@ Visualization Manager:
       Durability Policy: Volatile
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/rgb_pano
+      Value: /glassguard/viz/rgb_pano
     Value: true
   - Class: rviz_default_plugins/Image
     Enabled: true
@@ -412,7 +412,7 @@ Visualization Manager:
       Durability Policy: Volatile
       History Policy: Keep Last
       Reliability Policy: Reliable
-      Value: /glass_killer/viz/lidar_pano
+      Value: /glassguard/viz/lidar_pano
     Value: true
   Enabled: true
   Global Options:

@@ -5,7 +5,7 @@
       imageTime + imageLatencyOffset; the camera header stamp lags true exposure, so 0.0 projects
       with a stale pose and the seeds yaw while turning. Sweep with IMAGE_LATENCY=0.02 etc./-->
   <arg name="imageLatencyOffset" default="0.0" />
-  <node pkg="extrinsic_latency_calib" exec="glassKillerNode" name="Glass_killer_node" output="screen">
+  <node pkg="extrinsic_latency_calib" exec="glassGuardProvider" name="glassguard_provider" output="screen">
     <param name="minRange" value="0.5" />
     <param name="maxRange" value="$(var maxRange)" />
     <param name="angAdjustment" value="0.01" />
@@ -39,7 +39,7 @@
     <param name="habitatCy" value="240.0" />
     <param name="habitatScaleXPercent" value="100" /> <!-- raise to narrow horizontally/-->
     <param name="habitatScaleYPercent" value="100" /> <!-- raise to shrink vertically/-->
-    <param name="outputFolder" value="./glass_killer_output" />
+    <param name="outputFolder" value="./glassguard_output" />
     <param name="saveOutputs" value="false" /> <!--live glass-killing: publish topics only, no disk writes/-->
     <param name="saveInterval" value="5" />
     <param name="depthPngScale" value="1000.0" />

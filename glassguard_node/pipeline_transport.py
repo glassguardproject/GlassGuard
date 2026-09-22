@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Same-machine pipeline transport for the 3-node Glass Killer build.
+"""Same-machine pipeline transport for the 3-node GlassGuard build.
 
 FAT payloads (masks, clouds) exceed the 16 MB UDP DDS buffer (no-SHM profile), so we
 do NOT push them through a ROS topic. Instead each stage writes its payload dict as a
@@ -14,7 +14,7 @@ import pickle
 import glob
 import numpy as np
 
-SHM_DIR = "/dev/shm/gkpipe"
+SHM_DIR = "/dev/shm/ggpipe"
 os.makedirs(SHM_DIR, exist_ok=True)
 
 

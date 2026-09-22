@@ -46,19 +46,19 @@ import numpy as np
 import torch
 from PIL import Image as PILImage
 
-GLASS_KILLER_DIR = Path(__file__).resolve().parent
+GLASSGUARD_DIR = Path(__file__).resolve().parent
 DA2_METRIC_DIR = Path(os.environ.get("GG_DA2", os.path.expanduser("~/Depth-Anything-V2")) + "/metric_depth")
 
-for _p in (str(GLASS_KILLER_DIR), str(DA2_METRIC_DIR)):
+for _p in (str(GLASSGUARD_DIR), str(DA2_METRIC_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-_SAM3_PKG_DIR = str(GLASS_KILLER_DIR / "sam3")
+_SAM3_PKG_DIR = str(GLASSGUARD_DIR / "sam3")
 if _SAM3_PKG_DIR not in sys.path:
     sys.path.insert(0, _SAM3_PKG_DIR)
 
 _gfr = importlib.import_module("glass_frame_ring")
-_gkd = importlib.import_module("glass_killer_deterministic")
+_gkd = importlib.import_module("glassguard_deterministic")
 _dcf = importlib.import_module("debug_combined_frame")
 
 build_sam3 = _gfr.build_sam3
@@ -319,7 +319,7 @@ def _px_per_rad(W: int) -> float:
     return _PINHOLE["fx"] if _PINHOLE is not None else float(W) / (2.0 * np.pi)
 
 
-# --- camera <-> WORLD(map) transform, mirroring glass_killer_ros_node._to_map. The per-frame pose
+# --- camera <-> WORLD(map) transform, mirroring glassguard_ros_node._to_map. The per-frame pose
 # (sensor in map) lets the batch accumulate planes in a CONSISTENT world frame. ------------------
 _R_STATIC = np.array([[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]], dtype=np.float64)  # Rz(-90)
 _T_STATIC = np.array([-0.12, -0.075, 0.255], dtype=np.float64)
@@ -6463,7 +6463,7 @@ def _save_pillar_bboxes_ply(path: str, big_idx, seed_records, horiz_by_mask, arg
 def _save_local_tug_png(path: str, tracker, pose, half_cells: int = 50, fid: int = 0) -> None:
     """Per-frame seed-vs-floor TUG map in a local window around the robot, ROBOT-FACING.
 
-    Port of the ROS node's _save_local_tug_view (glass_killer_ros_localtug/) so the batch demo
+    Port of the ROS node's _save_local_tug_view (glassguard_ros_localtug/) so the batch demo
     produces the same picture: one fine (map_cell_m) cell per square, coloured by which side leads
     and how strongly, with the dominant count drawn in the cell.
       MAGENTA = seed wins/ties   GREEN = floor   ORANGE = obstacle   LINES = tracked planes
@@ -16988,7 +16988,7 @@ def process_frame(
             big_idx, seed_records, horiz_by_mask, args, pose=_pose)
     timings["[sub] global-map update"] = time.perf_counter() - _t_upd
     # PER-FRAME GLOBAL TRACKER export (for eval): the tracker's CURRENT world planes AFTER this
-    # frame's compete/merge/evict -> frame_dir/NNNNNN_glasskiller_glass.ply. Unlike planes_frame
+    # frame's compete/merge/evict -> frame_dir/NNNNNN_glassguard_glass.ply. Unlike planes_frame
     # (raw per-frame placements) this reflects the coplanarity merge + spill-tug eviction.
     if bool(getattr(args, "save_global_planes_per_frame", False)) and _PLANE_TRACKER is not None:
         _gparts = []
@@ -17003,7 +17003,7 @@ def process_frame(
         # already WORLD frame -> write RAW (write_ply, NOT _save_points_ply which swaps cam->viewer);
         # eval reads these with --pred-world-frame (no viewer_to_world). BINARY: the ascii dump
         # cost ~0.15s/frame and made eval parse 8GB of text per cell.
-        _bp = os.path.join(frame_dir, f"{frame_id:06d}_glasskiller_glass.ply")
+        _bp = os.path.join(frame_dir, f"{frame_id:06d}_glassguard_glass.ply")
         with open(_bp, "wb") as _bf:
             _bf.write((f"ply\nformat binary_little_endian 1.0\nelement vertex {len(_gpx)}\n"
                        "property float x\nproperty float y\nproperty float z\n"
@@ -18026,7 +18026,7 @@ def parse_args() -> argparse.Namespace:
     ap.add_argument("--save-planes-min", action="store_true", default=False,
                     help="With --save-minimal: still save planes_frameNNNNNN.ply per frame (for eval).")
     ap.add_argument("--save-global-planes-per-frame", action="store_true", default=False,
-                    help="Save the tracker's CURRENT global planes each frame as NNNNNN_glasskiller_glass.ply "
+                    help="Save the tracker's CURRENT global planes each frame as NNNNNN_glassguard_glass.ply "
                          "(WORLD frame; reflects merge+eviction). Eval with --pred-world-frame.")
     ap.add_argument("--no-track-path-evict", dest="track_path_evict", action="store_false", default=True,
                     help="A/B: disable the robot-path eviction/trim (plane where the robot drove).")
@@ -18558,16 +18558,16 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-    # conda run -n sam3 python batch_bigmask_4ray_randomopt.py   --habitat-dir ./glass_killer_ros_input_1 --start-frame 0 --student   --ckpt-path ./slim_sam3/checkpoints/student_final.pt   --meta-json ./slim_sam3/checkpoints/mlp_pruned_meta.json   --cached-text-features ./slim_sam3/prompt_features/window_glass.pt   --prompt glass window   --bf16   --out-dir ./killer_simple_out/bigmask_4ray_randomopt   --max-samples 200  --ray-region-radius-m 0.1 --frame-stride 1 --no-occ-check --clench-floor-occ-cell-m 0.1 --clench-floor-occ-min-pts 10 --clench-diag-robust-quad
+    # conda run -n sam3 python glassguard_core.py   --habitat-dir ./glassguard_ros_input_1 --start-frame 0 --student   --ckpt-path ./slim_sam3/checkpoints/student_final.pt   --meta-json ./slim_sam3/checkpoints/mlp_pruned_meta.json   --cached-text-features ./slim_sam3/prompt_features/window_glass.pt   --prompt glass window   --bf16   --out-dir ./glassguard_out/glassguard_core   --max-samples 200  --ray-region-radius-m 0.1 --frame-stride 1 --no-occ-check --clench-floor-occ-cell-m 0.1 --clench-floor-occ-min-pts 10 --clench-diag-robust-quad
 
 
-# conda run -n sam3 python batch_bigmask_4ray_randomopt.py \
-#   --habitat-dir ./glass_killer_ros_input_1 --start-frame 0 --student \
+# conda run -n sam3 python glassguard_core.py \
+#   --habitat-dir ./glassguard_ros_input_1 --start-frame 0 --student \
 #   --ckpt-path ./slim_sam3/checkpoints/student_final.pt \
 #   --meta-json ./slim_sam3/checkpoints/mlp_pruned_meta.json \
 #   --cached-text-features ./slim_sam3/prompt_features/window_glass.pt \
 #   --prompt glass window --bf16 \
-#   --out-dir ./killer_simple_out/panel_run \
+#   --out-dir ./glassguard_out/panel_run \
 #   --max-samples 200 --frame-stride 1 --ray-region-radius-m 0.1 --no-occ-check \
 #   --corner-curve-repair --save-minimal
 
@@ -18586,6 +18586,6 @@ if __name__ == "__main__":
 #node run without da2 without input save
 # source /opt/ros/jazzy/setup.bash
 # source <ROS_WS>/install/setup.bash
-# conda run -n sam3 --no-capture-output python ./glass_killer_ros_node.py --ros-args -p use_da2:=false  -p save_align_panel:=false -p use_pinhole_align:=false --clench-floor-occ-cell-m 0.1 --clench-floor-occ-min-pts 2
+# conda run -n sam3 --no-capture-output python ./glassguard_ros_node.py --ros-args -p use_da2:=false  -p save_align_panel:=false -p use_pinhole_align:=false --clench-floor-occ-cell-m 0.1 --clench-floor-occ-min-pts 2
 
  

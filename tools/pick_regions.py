@@ -14,7 +14,7 @@ Keys  : 1..4 choose which region to (re)draw   n next region   d delete current
         arrows nudge by 2 px (Shift: resize)   s / Enter save   q / Esc quit without saving
 
 Saves ./demo_rec/regions.txt  (one line per region:  name WxH+X+Y, full-screen
-pixels, even sizes). run_glass_killer_full.sh reads it when VIZ_REC is set.
+pixels, even sizes). run_glassguard.sh reads it when VIZ_REC is set.
 """
 import os, sys, glob, subprocess, tempfile
 import tkinter as tk

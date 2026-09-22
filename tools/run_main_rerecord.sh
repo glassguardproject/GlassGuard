@@ -40,12 +40,12 @@ SCENES=(bldgB_f2 bldgD_int bldgA_ext_night bldgB_int bldgC_office bldgD_ext bldg
 say() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$LOG"; }
 
 teardown() {
-  pkill -f "[g]lass_killer_plane_node"; pkill -f "[g]lass_killer_ros_node"
+  pkill -f "[g]lassguard_node"; pkill -f "[g]lassguard_ros_node"
   pkill -f "[r]os2 bag play"; pkill -INT -f "[r]os2 bag record"; pkill -f "[c]apture_input_node"
-  pkill -f "[r]un_glass_killer_full.sh"; pkill -f "[s]ystem_bagfile.launch"
-  pkill -f "[g]lass_killer.launch"; pkill -f "[g]k_node.py"; pkill -f "[r]viz2 --fullscreen"
+  pkill -f "[r]un_glassguard_full.sh"; pkill -f "[s]ystem_bagfile.launch"
+  pkill -f "[g]lassguard.launch"; pkill -f "[g]k_node.py"; pkill -f "[r]viz2 --fullscreen"
   pkill -f "[l]oam"; sleep 10
-  local pat="[g]lass_killer_plane_node|[g]k_node.py|[s]ystem_bagfile.launch|[r]os2 bag play|[r]os2 bag record|[r]viz2 --fullscreen"
+  local pat="[g]lassguard_node|[g]k_node.py|[s]ystem_bagfile.launch|[r]os2 bag play|[r]os2 bag record|[r]viz2 --fullscreen"
   if [ "$(pgrep -fc "$pat")" -gt 0 ]; then say "   teardown: forcing leftovers"; pkill -9 -f "$pat"; sleep 5; fi
 }
 
@@ -61,7 +61,7 @@ run_one() {   # scene method(pinhole|360) tag(pin|360)
   say "=== LIVE $SCENE / GG-$TAG  range=${RANGE}m  free=${FREE}GB ==="
   local VIEW="HEADLESS=true"; [ "$SCREEN_REC" = "true" ] && VIEW="RVIZ_FULLSCREEN=true"
   ( cd $GK && env METHOD=$METHOD $VIEW BAG="$BAG" RANGE_M=$RANGE RECORD_RUN=false \
-      RECORD_IO=true IO_DIR="$IO" setsid ./run_glass_killer_full.sh ) > /tmp/main_${SCENE}_$TAG.log 2>&1 &
+      RECORD_IO=true IO_DIR="$IO" setsid ./run_glassguard.sh ) > /tmp/main_${SCENE}_$TAG.log 2>&1 &
   # screen recording: fragmented mp4 so the file stays playable even if the recorder is killed
   local FFPID=""
   if [ "$SCREEN_REC" = "true" ]; then

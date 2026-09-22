@@ -7,7 +7,7 @@
 
   <!-- Real-test dense capture: play a rosbag (+ SLAM stack producing /state_estimation
        and /registered_scan), and this node saves EVERY processed frame:
-         rgb_%06d.png      360 pano   (Glass_killer batch: -\-batch-glob "rgb_*.png")
+         rgb_%06d.png      360 pano   (GlassGuard batch: -\-batch-glob "rgb_*.png")
          cloud_%06d.ply    5s-window scan stack, viewer z-up frame
          pose_%06d.txt     "px py pz qx qy qz qw" (batch _load_frame_pose format)
          pinhole_%06d.png  pinhole RGB for MonoGlass3D (630x504)
@@ -24,7 +24,7 @@
     <param name="imageSkipNum" value="0" />  <!-- 0 = every camera frame (full bag rate), 1 = every 2nd -->
     <param name="imageLatencyOffset" value="0.0" />
 
-    <!-- lidar -> camera extrinsics (same as glass_killer.launch) -->
+    <!-- lidar -> camera extrinsics (same as glassguard.launch) -->
     <param name="camRoll" value="-1.5707963" />
     <param name="camPitch" value="0.0" />
     <param name="camYaw" value="-1.5707963" />

@@ -36,9 +36,9 @@ add_executable(regScanStack src/regScanStack.cpp)
 ament_target_dependencies(regScanStack rclcpp std_msgs sensor_msgs nav_msgs pcl_ros)
 target_link_libraries(regScanStack ${PCL_LIBRARIES})
 
-add_executable(glassKillerNode src/glassKillerNode.cpp)
-ament_target_dependencies(glassKillerNode rclcpp std_msgs sensor_msgs nav_msgs pcl_ros cv_bridge)
-target_link_libraries(glassKillerNode ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
+add_executable(glassGuardProvider src/glassGuardProvider.cpp)
+ament_target_dependencies(glassGuardProvider rclcpp std_msgs sensor_msgs nav_msgs pcl_ros cv_bridge)
+target_link_libraries(glassGuardProvider ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
 add_executable(candiate src/pinhhole.cpp)
 ament_target_dependencies(candiate rclcpp std_msgs sensor_msgs nav_msgs pcl_ros cv_bridge)
@@ -53,7 +53,7 @@ ament_target_dependencies(realTestSaver rclcpp std_msgs sensor_msgs nav_msgs pcl
 target_link_libraries(realTestSaver ${PCL_LIBRARIES} ${OpenCV_LIBRARIES})
 
 install(TARGETS
-  extrinsicCalib latencyCalib regScanStack glassKillerNode candiate monoGlassSaver realTestSaver
+  extrinsicCalib latencyCalib regScanStack glassGuardProvider candiate monoGlassSaver realTestSaver
   DESTINATION lib/${PROJECT_NAME})
 
 install(

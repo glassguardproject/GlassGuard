@@ -38,9 +38,9 @@ rm -rf "$W"/gts; mkdir -p "$W"/gts; ln -s $ROOT/gts/gt_planes.json "$W"/gts/
 ln -s $ROOT/gts/bad_frames.json "$W"/gts/ 2>/dev/null
 
 ( cd $RT && $PY eval_occupancy.py --root ${SCENE}_live/w_${ABL_TAG}_${CFG} \
-    --pred-dir "$pdir" --pred-suffix glasskiller_glass --pred-world-frame \
+    --pred-dir "$pdir" --pred-suffix glassguard_glass --pred-world-frame \
     --scene-voxel 0.1 --expel-win 0 --cov-dilate 1 $FOV ) > /tmp/ev_${SCENE}_${CFG}.log 2>&1 \
-  && cp "$W"/gts/occupancy_eval_glasskiller_glass.json \
+  && cp "$W"/gts/occupancy_eval_glassguard_glass.json \
         $ROOT/gts/occupancy_eval_${OUT_TAG}.json && echo "   EVAL OK" || echo "   !! EVAL FAIL"
 rm -rf "$W"
 echo "DONE_${SCENE}_${CFG}"

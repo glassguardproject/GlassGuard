@@ -17,15 +17,15 @@ if [ "$ABL_METHOD" = "pinhole" ]; then ABL_TAG=ablpin; else ABL_TAG=abl; fi
 OUTROOT=${GG_DATA_ROOT:-$HOME/glassguard_data}
 
 teardown() {
-  pkill -f "[g]lass_killer_plane_node"; pkill -f "[g]lass_killer_ros_node"
+  pkill -f "[g]lassguard_node"; pkill -f "[g]lassguard_ros_node"
   pkill -f "[r]os2 bag play"; pkill -f "[c]apture_input_node"; pkill -f "[r]os2 bag record"
   pkill -f "[s]ystem_real_robot"; pkill -f "[l]oam"
   # the launcher and the stack launch themselves (needed when HEADLESS: no RViz exit to end them)
-  pkill -f "[r]un_glass_killer_full.sh"; pkill -f "[s]ystem_bagfile.launch"
-  pkill -f "[g]lass_killer.launch"; pkill -f "[g]k_node.py"; sleep 10
-  left=$(pgrep -fc "[g]lass_killer_plane_node|[g]k_node.py|[s]ystem_bagfile.launch|[r]os2 bag play|[r]os2 bag record")
+  pkill -f "[r]un_glassguard_full.sh"; pkill -f "[s]ystem_bagfile.launch"
+  pkill -f "[g]lassguard.launch"; pkill -f "[g]k_node.py"; sleep 10
+  left=$(pgrep -fc "[g]lassguard_node|[g]k_node.py|[s]ystem_bagfile.launch|[r]os2 bag play|[r]os2 bag record")
   if [ "$left" -gt 0 ]; then echo "!! teardown: $left process(es) still alive, forcing"; 
-    pkill -9 -f "[g]lass_killer_plane_node|[g]k_node.py|[s]ystem_bagfile.launch|[r]os2 bag play|[r]os2 bag record"; sleep 5; fi
+    pkill -9 -f "[g]lassguard_node|[g]k_node.py|[s]ystem_bagfile.launch|[r]os2 bag play|[r]os2 bag record"; sleep 5; fi
 }
 
 run_cfg() {
@@ -36,7 +36,7 @@ run_cfg() {
   rm -rf "$IO"
   echo "=== LIVE $SCENE/$cfg $(date +%H:%M:%S) ==="
   ( cd $GK && env "$@" METHOD=$ABL_METHOD BAG="$BAG" RANGE_M=$RANGE RECORD_RUN=false RECORD_IO=true \
-      IO_DIR="$IO" setsid ./run_glass_killer_full.sh ) > /tmp/live_${ABL_TAG}_${SCENE}_${cfg}.log 2>&1 &
+      IO_DIR="$IO" setsid ./run_glassguard.sh ) > /tmp/live_${ABL_TAG}_${SCENE}_${cfg}.log 2>&1 &
   # 1) wait for the bag player to appear (stack startup can take ~60 s)
   for i in $(seq 1 40); do sleep 5; pgrep -f "[r]os2 bag play" >/dev/null && break; done
   # 2) wait for it to EXIT = bag fully played

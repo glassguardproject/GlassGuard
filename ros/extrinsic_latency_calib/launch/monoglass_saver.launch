@@ -5,7 +5,7 @@
        last-5s scan-window PLY + poses.csv.
        Toggle saveDepth / savePly to false to save disk space. -->
   <node pkg="extrinsic_latency_calib" exec="monoGlassSaver" name="monoglass_saver" output="screen">
-    <!-- lidar / stacking (same as glass_killer.launch) -->
+    <!-- lidar / stacking (same as glassguard.launch) -->
     <param name="minRange" value="0.5" />
     <param name="maxRange" value="10.0" />
     <param name="voxelSize" value="0.02" />
@@ -14,7 +14,7 @@
     <param name="imageSkipNum" value="2" />
     <param name="imageLatencyOffset" value="0.0" /> <!-- s; retime pose lookup for real-robot camera lag -->
 
-    <!-- lidar -> camera extrinsics (same as glass_killer.launch) -->
+    <!-- lidar -> camera extrinsics (same as glassguard.launch) -->
     <param name="camRoll" value="-1.5707963" />
     <param name="camPitch" value="0.0" />
     <param name="camYaw" value="-1.5707963" />

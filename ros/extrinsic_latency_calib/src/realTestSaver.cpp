@@ -1,7 +1,7 @@
 // realTestSaver.cpp
 //
 // Dense real-test capture: play a rosbag, run this node, it saves EVERY processed
-// frame (saveInterval=1 by default) in the flat layout the Glass_killer batch code
+// frame (saveInterval=1 by default) in the flat layout the GlassGuard batch code
 // consumes, plus the pinhole RGB MonoGlass3D needs:
 //
 //   <outputFolder>/rgb_%06d.png       360 pano RGB (batch: --batch-glob "rgb_*.png")
@@ -132,7 +132,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr scanCloud(new pcl::PointCloud<pcl::PointXYZ>
 pcl::PointCloud<pcl::PointXYZ>::Ptr scanCloudStack(new pcl::PointCloud<pcl::PointXYZ>());
 pcl::PointCloud<pcl::PointXYZ>::Ptr scanCloudCrop(new pcl::PointCloud<pcl::PointXYZ>());
 
-double stackTimeWindow = 5.0;  // seconds (glassKillerNode wiring)
+double stackTimeWindow = 5.0;  // seconds (glassGuardProvider wiring)
 std::deque<std::pair<double, pcl::PointCloud<pcl::PointXYZ>::Ptr>> scanWindow;
 
 const int odomStackNum = 400;
@@ -557,7 +557,7 @@ int main(int argc, char** argv)
             plyStatus = pcl::io::savePLYFileBinary(outputFolder + "/cloud_" + idx + ".ply", panoCloud);
           }
 
-          // pose_%06d.txt in the Glass_killer batch _load_frame_pose format + poses.csv
+          // pose_%06d.txt in the GlassGuard batch _load_frame_pose format + poses.csv
           geometry_msgs::msg::PoseStamped pose_out;
           int64_t dt_pose_ns = 0;
           if (lookup_pose_nearest(imageStamp, pose_out, dt_pose_ns)) {

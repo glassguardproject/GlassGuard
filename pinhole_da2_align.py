@@ -1,4 +1,4 @@
-"""Pinhole DA2 <-> lidar alignment for the live glass-killer node.
+"""Pinhole DA2 <-> lidar alignment for the live glassguard node.
 
 Purpose
 -------

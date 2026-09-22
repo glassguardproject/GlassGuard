@@ -68,7 +68,7 @@ class CaptureNode(Node):
         self.times = open(os.path.join(self.out, "times.txt"), "w")
         qos = QoSProfile(depth=5, reliability=ReliabilityPolicy.BEST_EFFORT,
                          history=HistoryPolicy.KEEP_LAST)
-        self.create_subscription(PointCloud2, "/glass_killer/cloud", self._cloud, qos)
+        self.create_subscription(PointCloud2, "/glassguard/cloud", self._cloud, qos)
         if self.world_scan:
             self.create_subscription(PointCloud2, "/registered_scan", self._scan, qos)
         self.create_subscription(CompressedImage, "/camera/image/compressed", self._img, qos)

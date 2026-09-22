@@ -8,10 +8,10 @@
 //   <outputFolder>/<%06d>/<%06d>_pc_depth_map.txt     sparse "u v Z" lidar depth rows (toggle: saveDepth)
 //   <outputFolder>/<%06d>/<%06d>_depth.png            dense 16-bit Z depth, mm (toggle: saveDepth)
 //   <outputFolder>/<%06d>/<%06d>_cloud.ply            last-5s sliding-window scan stack, viewer frame,
-//                                                     same wiring as glassKillerNode (toggle: savePly)
+//                                                     same wiring as glassGuardProvider (toggle: savePly)
 //   <outputFolder>/poses.csv                          frame,timestamp,x,y,z,qx,qy,qz,qw
 //
-// Input wiring is identical to glassKillerNode: /state_estimation, /registered_scan, /camera/image,
+// Input wiring is identical to glassGuardProvider: /state_estimation, /registered_scan, /camera/image,
 // with the same sliding stackTimeWindow accumulation (NOT an unbounded stack).
 #include <math.h>
 #include <stdio.h>
@@ -132,7 +132,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr scanCloudStack(new pcl::PointCloud<pcl::Poin
 pcl::PointCloud<pcl::PointXYZ>::Ptr scanCloudCrop(new pcl::PointCloud<pcl::PointXYZ>());
 
 // Sliding time window: keep only the last stackTimeWindow seconds of registered scans
-// (same wiring as glassKillerNode -- no unbounded accumulation).
+// (same wiring as glassGuardProvider -- no unbounded accumulation).
 double stackTimeWindow = 5.0;  // seconds
 std::deque<std::pair<double, pcl::PointCloud<pcl::PointXYZ>::Ptr>> scanWindow;
 
@@ -193,7 +193,7 @@ void scanHandler(const sensor_msgs::msg::PointCloud2::ConstSharedPtr scanIn)
   scanCloud->clear();
   pcl::fromROSMsg(*scanIn, *scanCloud);
 
-  // Sliding time-window accumulation (glassKillerNode wiring).
+  // Sliding time-window accumulation (glassGuardProvider wiring).
   double scanT = rclcpp::Time(scanIn->header.stamp).seconds();
   scanWindow.emplace_back(scanT,
       pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>(*scanCloud)));
@@ -347,7 +347,7 @@ int main(int argc, char** argv)
     RCLCPP_INFO(nh->get_logger(), "Saving disabled (saveOutputs=false)");
   }
 
-  // Subs (same wiring as glassKillerNode)
+  // Subs (same wiring as glassGuardProvider)
   auto subOdom  = nh->create_subscription<nav_msgs::msg::Odometry>("/state_estimation", 5, odomHandler);
   auto subScan  = nh->create_subscription<sensor_msgs::msg::PointCloud2>("/registered_scan", 2, scanHandler);
   auto subImage = nh->create_subscription<sensor_msgs::msg::Image>("/camera/image", 2, imageHandler);
@@ -494,7 +494,7 @@ int main(int argc, char** argv)
         float sinLidarYaw = std::sin(lidarYaw),   cosLidarYaw = std::cos(lidarYaw);
 
         // 5s-window stacked cloud in the viewer z-up frame (x8, z8, -y8) -- the PLY content,
-        // exactly like glassKillerNode.
+        // exactly like glassGuardProvider.
         pcl::PointCloud<pcl::PointXYZ> panoCloud;
         panoCloud.points.reserve(scanCloudStack->points.size());
 
@@ -538,7 +538,7 @@ int main(int argc, char** argv)
           float y8 = y7 * cosCamRoll + z7 * sinCamRoll;
           float z8 = -y7 * sinCamRoll + z7 * cosCamRoll;
 
-          // Viewer z-up frame for the PLY (same as glassKillerNode)
+          // Viewer z-up frame for the PLY (same as glassGuardProvider)
           panoCloud.points.emplace_back(x8, z8, -y8);
 
           // Rotate camera-frame point into the pinhole view frame: p_pin = R^T * p_cam

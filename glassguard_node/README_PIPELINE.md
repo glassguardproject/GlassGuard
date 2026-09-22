@@ -1,12 +1,12 @@
-# Glass Killer — 3-node pipeline (throughput build)
+# GlassGuard — 3-node pipeline (throughput build)
 
 **Goal:** raise *throughput* by running the frame's stages as 3 separate processes
 (3 GILs → true multicore). Latency = sum of stages (~1.2 s, one-frame-ish lag,
 accepted); throughput = 1 / slowest stage.
 
-This folder is a SEPARATE build. `../glass_killer_ros_node.py` (the working single
+This folder is a SEPARATE build. `../glassguard_ros_node.py` (the working single
 -process node) is untouched and remains the reference / fallback. Both import the
-same `../batch_bigmask_4ray_randomopt.py` (bsp), so stage logic is reused, not
+same `../glassguard_core.py` (bsp), so stage logic is reused, not
 rewritten — each node calls the same bsp functions the monolith calls.
 
 ## Stage split (from the real `_pt()` markers in `_process`, post-0.05-voxel)
@@ -32,13 +32,13 @@ Masks are `np.packbits`-ed (÷8) before pickling.
 - **cloud+image → node1** : the provider's existing topics (same as the monolith:
   `/registered_scan`/last-scan, `/camera/image`, pose, terrain). node1 subscribes to
   these directly — no new contract here.
-- **node1 → node2  (`/gkpipe/detect`)** : `{ stamp, pose7, big_masks(packbits),
+- **node1 → node2  (`/ggpipe/detect`)** : `{ stamp, pose7, big_masks(packbits),
   big_idx, mask_meta(colors/scores), pc_xyz(5cm), img_wh, pano_offset }`
-- **node2 → node3  (`/gkpipe/geom`)** : `{ stamp, pose7, clench_by_mask, seed_records,
+- **node2 → node3  (`/ggpipe/geom`)** : `{ stamp, pose7, clench_by_mask, seed_records,
   mask_ray_records, floor_gate_xyz, floor_world, obst_world, glass_mask(packbits),
   pc_xyz, img_wh, pano_offset }`
 - **node3 → world** : the existing output topics verbatim
-  (`/glass_killer/global_planes`, `/glass_killer/final_global_planes`,
+  (`/glassguard/global_planes`, `/glassguard/final_global_planes`,
   `/added_obstacles`) — downstream planner/rviz unchanged.
 
 Each payload carries its **capture-time pose** (pose7) so node3 evicts/places against

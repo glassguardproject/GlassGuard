@@ -7,11 +7,12 @@ Navigation* (under review). Project page: https://glassguardproject.github.io/
 
 | Path | Contents |
 |---|---|
-| `glass_killer_pipeline/gk_node.py` | ROS 2 node. Runs as two processes: `role:=perception` (Slim SAM3 detection + pillar construction + ray-cast orientation verification) and `role:=mapping` (global plane manager: merging, seed–floor evidence, multi-view verification, planner feed). `pipeline_transport.py` carries geometry between them. |
-| `batch_bigmask_4ray_randomopt.py` | The algorithm library used by the node (candidate construction, angle gate, tracker) and an offline replay driver for recorded inputs. |
+| `glassguard_node/glassguard_node.py` | ROS 2 node. Runs as two processes: `role:=perception` (Slim SAM3 detection + pillar construction + ray-cast orientation verification) and `role:=mapping` (global plane manager: merging, seed–floor evidence, multi-view verification, planner feed). `pipeline_transport.py` carries geometry between them. |
+| `glassguard_core.py` | The algorithm library used by the node (candidate construction, angle gate, tracker) and an offline replay driver for recorded inputs. |
+| `glass_frame_ring.py`, `glassguard_deterministic.py`, `debug_combined_frame.py`, `train_normal_head.py`, `plane_predict.py` | Helper modules imported by the core (silhouette/frame-ring geometry, deterministic placement, per-frame debug rendering, optional learned normal head). |
 | `pinhole_da2_align.py` | Optional pinhole depth-prior alignment (off in the evaluated configuration). |
-| `run_glass_killer_full.sh` | Launcher: bag playback + autonomy stack + provider + GlassGuard. `METHOD=360|pinhole`, `RANGE_M`, `VIZ_FULL`, `VIZ_REC`, ablation switches (`PAR_CHECK`, `REPROJECT_EVICT`, `FLOOR_EVICT`, `TRACK_MERGE`). |
-| `ros/extrinsic_latency_calib/` | The LiDAR/camera provider node (registered-scan stack, de-rotation with the exact cloud pose, `/glass_killer/cloud`). |
+| `run_glassguard.sh` | Launcher: bag playback + autonomy stack + provider + GlassGuard. `METHOD=360|pinhole`, `RANGE_M`, `VIZ_FULL`, `VIZ_REC`, ablation switches (`PAR_CHECK`, `REPROJECT_EVICT`, `FLOOR_EVICT`, `TRACK_MERGE`). |
+| `ros/extrinsic_latency_calib/` | The LiDAR/camera provider node (`glassGuardProvider`, launched by `glassguard.launch`) (registered-scan stack, de-rotation with the exact cloud pose, `/glassguard/cloud`). |
 | `tools/` | Recording (`capture_input_node.py`), evaluation (`eval_occupancy.py`, `eval_abl_scene.sh`), batch experiment drivers (`run_main_rerecord.sh`, `run_pin_ablation.sh`), demo-video capture (`record_viz.sh`, `encode_viz.sh`, `pick_regions.py`), protection maps. |
 | `slim_sam3/` | Slim SAM3: confidence-guided Taylor pruning, distillation fine-tune, loader, VRAM benchmark, and the pruned-channel metadata (`mlp_pruned_meta.json`). Weights are not included (2.7 GB); see below. |
 | `rviz/` | RViz layout for the full-visual demo. |
@@ -36,6 +37,6 @@ public SAM 3 release.
 
 ## Evaluated configuration
 
-All thresholds are set in `run_glass_killer_full.sh` and were frozen across the experiments
+All thresholds are set in `run_glassguard.sh` and were frozen across the experiments
 (`PIPELINE=true`, `PAR_CHECK=true`, `SPILL_VIS_MIN=0.5`, `SPILL_BASE_N=2`, `SPILL_PERSIST=2`,
 `SPILL_HARD=0.55`, `RANGE_M=10`, or `20` for the two large outdoor scenes).

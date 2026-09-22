@@ -35,7 +35,7 @@ class Saver(Node):
             f = open(os.path.join(d, "stamps.csv"), "w", newline="")
             w = csv.writer(f); w.writerow(["index", "sec", "nanosec", "t_rel", "wall"])
             self.csv[t] = (f, w)
-            self.create_subscription(Image, f"/glass_killer/viz/{t}",
+            self.create_subscription(Image, f"/glassguard/viz/{t}",
                                      self._make_cb(t), qos)
         self.get_logger().info(f"saving {len(TOPICS)} streams -> {out}")
 

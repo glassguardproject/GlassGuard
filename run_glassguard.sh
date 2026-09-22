@@ -2,18 +2,18 @@
 # no-SHM transport: stale /dev/shm segments from killed nodes break later runs (see ~/.ros/fastdds_no_shm.xml)
 export FASTDDS_DEFAULT_PROFILES_FILE=$HOME/.ros/fastdds_no_shm.xml
 export FASTRTPS_DEFAULT_PROFILES_FILE=$HOME/.ros/fastdds_no_shm.xml
-# One-shot launcher for the FULL Glass Killer bag pipeline. The Glass Killer NODE starts FIRST (loads
+# One-shot launcher for the FULL GlassGuard bag pipeline. The GlassGuard NODE starts FIRST (loads
 # its models in the foreground); everything else (stack, provider, republish, bag) is brought up in
 # parallel right after, so they load while the node loads.
 #   node (foreground) + [stack -> provider -> republish -> bag play] in parallel
 # Ctrl-C tears the whole group down (SIGINT trap + kill 0).
 # ============================ KNOBS (edit these) ============================
 METHOD=${METHOD:-glassrecon}  # WHICH method: 360 | pinhole | monoglass | glassrecon | monoglass_live | glassrecon_live
-                      #   (env-overridable: METHOD=monoglass_live ./run_glass_killer_full.sh)
-                      #   360/pinhole   -> the Glass Killer node runs LIVE inference on the bag
+                      #   (env-overridable: METHOD=monoglass_live ./run_glassguard.sh)
+                      #   360/pinhole   -> the GlassGuard node runs LIVE inference on the bag
                       #   monoglass/glassrecon -> replays their PRECOMPUTED per-frame predictions
                       #     (preds_mg3d / preds_gr in SCENE_DIR) pose-synced to the bag, on the
-                      #     same /glass_killer/planes rviz topic (they have no live pipelines)
+                      #     same /glassguard/planes rviz topic (they have no live pipelines)
 SCENE_DIR=""          # scene dir for pinhole/monoglass/glassrecon; "" = auto:
                       # ${GG_DATA_ROOT:-$HOME/glassguard_data}/$(basename $BAG)_test
 PINHOLE_CFG=""        # set automatically by METHOD=pinhole (or point at any camera_config.json)
@@ -93,7 +93,7 @@ RECORD_PLACED_INPUT=false  # ALSO dump the raw algorithm input (cloud PLY + rgb 
                        # on every plane-PLACEMENT frame -> canonical_run/placed_input. With many
                        # placements this is near per-frame recording -- keep OFF unless you need
                        # frame-exact replays; annotation/eval only needs the light artifacts above
-FINAL_MAP=true         # publish a 2nd looser OVERVIEW map (/glass_killer/final_global_planes)
+FINAL_MAP=true         # publish a 2nd looser OVERVIEW map (/glassguard/final_global_planes)
 FINAL_SPILL_DIST=2.0   # overview map only spill-evicts within this radius (m); farther planes persist
 FINAL_SPILL_THRESH=0.4 # overview map spill frac to count as a hit (higher = more tolerant than current)
 SAVE_REPROJECT=false    # save per-frame panel: topdown(evicted red) | rgb+reprojection(spill)
@@ -182,7 +182,7 @@ cleanup() { echo; echo "[launcher] Ctrl-C -> shutting everything down..."
             pkill -f "system_bagfile.launch" 2>/dev/null
             pkill -f "system_bagfile_with_exploration_planner.launc[h]" 2>/dev/null
             pkill -f "tare_planner_nod[e]"  2>/dev/null
-            pkill -f "glass_killer.launch"  2>/dev/null
+            pkill -f "glassguard.launch"  2>/dev/null
             pkill -f "ros2 bag play"        2>/dev/null
             if [ -n "${VIZ_REC_DIR:-}" ] && [ "${VIZ_REC_ENCODE:-true}" = "true" ]; then
               echo "[viz-rec] encoding the panel videos (synced to screen.mp4) ..."
@@ -263,7 +263,7 @@ deferred_start() {
     ( source "$ROS_SETUP"
       exec /usr/bin/python3 ./tools/capture_input_node.py         --ros-args -p out_dir:="'$IO_DIR/inputs'" -p crop_m:=${RANGE_M}.0 ) > /tmp/capture_io.log 2>&1 &
     ( source "$ROS_SETUP"
-      exec ros2 bag record -o "$IO_DIR/outputs_$(date +%H%M%S)"         /glass_killer/planes /glass_killer/global_planes         /glass_killer/final_global_planes         /monoglass3d/glass /glassrecon/glass         /habitat/state_estimation ) > /tmp/record_io.log 2>&1 &
+      exec ros2 bag record -o "$IO_DIR/outputs_$(date +%H%M%S)"         /glassguard/planes /glassguard/global_planes         /glassguard/final_global_planes         /monoglass3d/glass /glassrecon/glass         /habitat/state_estimation ) > /tmp/record_io.log 2>&1 &
   fi
   # CLEAN display scan (glass-marked msgs dropped) for the RegScan rviz display; pinhole-FOV
   # methods additionally crop the DISPLAY to the camera frustum. Planner topics untouched.
@@ -279,7 +279,7 @@ deferred_start() {
       ( cd "$STACK_DIR" && source ./install/setup.bash
         ros2 launch vehicle_simulator system_bagfile_with_exploration_planner.launch & sleep 1
         if [ "${VIZ_FULL:-false}" = "true" ]; then     # demo layout: the 4 pipeline-stage images
-          exec ros2 run rviz2 rviz2 -d ./rviz/glass_killer_video.rviz
+          exec ros2 run rviz2 rviz2 -d ./rviz/glassguard_demo.rviz
         else
           exec ros2 run rviz2 rviz2 -d src/base_autonomy/vehicle_simulator/rviz/vehicle_simulator_tare.rviz
         fi ) &
@@ -369,7 +369,7 @@ deferred_start() {
       if [ "${VIZ_FULL:-false}" = "true" ]; then
         ( cd "$STACK_DIR" && source ./install/setup.bash
           ros2 launch vehicle_simulator system_bagfile.launch & sleep 1
-          exec ros2 run rviz2 rviz2 -d ./rviz/glass_killer_video.rviz ) &
+          exec ros2 run rviz2 rviz2 -d ./rviz/glassguard_demo.rviz ) &
       elif [ "${RVIZ_FULLSCREEN:-false}" = "true" ]; then
         # standard stack RViz layout, but fullscreen so a screen recorder captures only RViz
         ( cd "$STACK_DIR" && source ./install/setup.bash
@@ -386,9 +386,9 @@ deferred_start() {
     sleep 6
   fi
   if [ "$LAUNCH_PROVIDER" = "true" ]; then
-    echo "[launcher] starting glass_killer provider..."
+    echo "[launcher] starting glassguard provider..."
     ( source "$ROS_SETUP"; [ -f "$CAM_INSTALL" ] && source "$CAM_INSTALL"
-      exec ros2 launch extrinsic_latency_calib glass_killer.launch maxRange:=${RANGE_M}.0 \
+      exec ros2 launch extrinsic_latency_calib glassguard.launch maxRange:=${RANGE_M}.0 \
         imageLatencyOffset:=${IMAGE_LATENCY:-0.0} ) &
     sleep 3
   fi
@@ -456,7 +456,7 @@ fi
 # frame rate tanks) -- RECORD_RUN no longer forces SAVE_INPUT. The canonical recording keeps the
 # LIGHT artifacts only (ledger/trajectory/scene cloud); placed_input is opt-in via
 # RECORD_PLACED_INPUT (it approached per-frame recording once the gate placed many planes).
-INPUT_SAVE_DIR=./glass_killer_ros_input
+INPUT_SAVE_DIR=./glassguard_ros_input
 
 # GT ANCHOR: when a canonical pinhole run exists, align by SCENE CLOUD (structure ICP onto
 # the live map) using the canonical-frame GT; otherwise fall back to raw frames-world GT +
@@ -479,13 +479,13 @@ if [ "$GT_AUTO_ALIGN" = "true" ] && [ -f "$SCENE_DIR/canonical_run_pinhole/scene
   GT_REF_CLOUD=$SCENE_DIR/canonical_run_pinhole/scene_cloud.ply
 fi
 
-# The Glass Killer node -- FIRST and FOREGROUND (loads models now; keeps stdin for SPACE-key save).
-echo "[launcher] starting Glass Killer node FIRST (loading models; the rest comes up in parallel)"
+# The GlassGuard node -- FIRST and FOREGROUND (loads models now; keeps stdin for SPACE-key save).
+echo "[launcher] starting GlassGuard node FIRST (loading models; the rest comes up in parallel)"
 echo "[launcher] method=$METHOD align=$USE_ALIGN da2=$USE_DA2 par_check=$PAR_CHECK save_input=$SAVE_INPUT" \
      "save_output=$SAVE_OUTPUT keysave_full=$KEYSAVE_FULL precision=$PRECISION obstacle_mode=$OBSTACLE_MODE"
 source "$ROS_SETUP"; [ -f "$CAM_INSTALL" ] && source "$CAM_INSTALL"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True   # trim reserved pool / avoid fragmentation OOM
-launch_gk_node() {  # $1 = node .py, $2 = extra --ros-args (role); PIPELINE reuses this verbatim
+launch_node() {  # $1 = node .py, $2 = extra --ros-args (role); PIPELINE reuses this verbatim
 conda run -n sam3 --no-capture-output python "$1" --ros-args $2 \
   -p pinhole_cfg:="'$PINHOLE_CFG'" \
   -p gt_planes_json:="'$GT_JSON'" \
@@ -559,13 +559,13 @@ conda run -n sam3 --no-capture-output python "$1" --ros-args $2 \
   -p save_reproject_panel:=$SAVE_REPROJECT
 }
 # PIPELINE=true (opt-in): 2-process split -- background MAPPING node (owns the tracker) +
-# foreground PERCEPTION node (detect+geometry -> /gkpipe/geom). Default = original mono node.
+# foreground PERCEPTION node (detect+geometry -> /ggpipe/geom). Default = original mono node.
 if [ "${PIPELINE:-true}" = "true" ]; then
-  echo "[pipeline] 2-process: background MAPPING + foreground PERCEPTION (gk_node.py)"
-  mkdir -p /dev/shm/gkpipe && rm -f /dev/shm/gkpipe/*.pkl 2>/dev/null
-  launch_gk_node ./glass_killer_pipeline/gk_node.py "-p role:=mapping" > /tmp/pipe_mapping.log 2>&1 &
-  sleep 8    # let the mapping node subscribe to /gkpipe/geom before perception starts publishing
-  launch_gk_node ./glass_killer_pipeline/gk_node.py "-p role:=perception"
+  echo "[pipeline] 2-process: background MAPPING + foreground PERCEPTION (glassguard_node.py)"
+  mkdir -p /dev/shm/ggpipe && rm -f /dev/shm/ggpipe/*.pkl 2>/dev/null
+  launch_node ./glassguard_node/glassguard_node.py "-p role:=mapping" > /tmp/pipe_mapping.log 2>&1 &
+  sleep 8    # let the mapping node subscribe to /ggpipe/geom before perception starts publishing
+  launch_node ./glassguard_node/glassguard_node.py "-p role:=perception"
 else
-  launch_gk_node ./glass_killer_ros_node.py ""
+  launch_node ./glassguard_ros_node.py ""
 fi
