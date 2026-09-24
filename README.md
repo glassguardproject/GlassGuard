@@ -28,6 +28,15 @@ Machine-specific paths were replaced by environment variables (defaults in paren
 
 Scene identifiers in the scripts (`bldgA_f5`, `bldgB_atrium`, …) match the project page.
 
+## Dependencies
+
+`slim_sam3/load_slim_sam3.py` imports the upstream `sam3` package (`sam3.model.*`), which is not
+vendored here. Install the public SAM 3 release so that `sam3` is importable, then add this
+repository to `PYTHONPATH`. `depth_anything_v2` (pointed at by `GG_DA2`) is likewise an external
+checkout, used only by the pinhole depth-alignment path. The remaining requirements are the usual
+ROS 2 / PyTorch stack: `torch`, `torchvision`, `numpy`, `opencv-python`, `pillow`, `scipy`,
+`matplotlib`, and `open3d` for the offline evaluation and annotation scripts.
+
 ## Weights
 
 The Slim-2816 student checkpoint and the cached text embedding are distributed separately

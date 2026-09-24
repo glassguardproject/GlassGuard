@@ -1,6 +1,6 @@
 {
-  "base_ckpt": "/ocean/projects/cis220039p/mdt2/hguo7/sam3/sam3.pt",
-  "ranking_dir": "/ocean/projects/cis220039p/mdt2/hguo7/sam3/pruning_algorithms/mlp_channel_ranking_merged",
+  "base_ckpt": "$GG_DATA_ROOT/sam3/sam3.pt",
+  "ranking_dir": "$GG_DATA_ROOT/sam3/pruning_algorithms/mlp_channel_ranking_merged",
   "keep_blocks": [
     0,
     1,

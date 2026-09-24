@@ -367,9 +367,9 @@ if __name__ == "__main__":
 
 
 # python bench_slim_sam3.py \
-#   --ckpt-path /ocean/projects/cis220039p/mdt2/hguo7/sam3/sam3.pt \
-#   --pruned-ckpt /ocean/projects/cis220039p/mdt2/hguo7/sam3/pruning_algorithms/sam3_full32_mlp_pruned_2816_adaptive_merged/sam3_mlp_pruned_adaptive_avg2816of4736.pt \
-#   --pruned-meta /ocean/projects/cis220039p/mdt2/hguo7/sam3/pruning_algorithms/sam3_full32_mlp_pruned_2816_adaptive_merged/mlp_pruned_meta.json \
+#   --ckpt-path $GG_DATA_ROOT/sam3/sam3.pt \
+#   --pruned-ckpt $GG_DATA_ROOT/sam3/pruning_algorithms/sam3_full32_mlp_pruned_2816_adaptive_merged/sam3_mlp_pruned_adaptive_avg2816of4736.pt \
+#   --pruned-meta $GG_DATA_ROOT/sam3/pruning_algorithms/sam3_full32_mlp_pruned_2816_adaptive_merged/mlp_pruned_meta.json \
 #   --mlp-hidden-dim 2816 \
 #   --prompt "window" \
 #   --n-warmup 5 \

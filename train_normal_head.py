@@ -18,10 +18,10 @@ Loss: 1 – cosine_similarity  (angular loss, range [0, 2])
 Usage:
     python train_normal_head_dav2.py \
         --data-dirs \
-            /ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/train_train_val \
-            /ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/campus_walk2_train_val \
-            /ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/street_walk_day1_train_val \
-        --da2-ckpt /ocean/projects/cis220039p/mdt2/hguo7/Depth-Anything-V2/checkpoints/depth_anything_v2_vits.pth \
+            $GG_DATA_ROOT/GlassGuard_trainer/full_runs/train_train_val \
+            $GG_DATA_ROOT/GlassGuard_trainer/full_runs/campus_walk2_train_val \
+            $GG_DATA_ROOT/GlassGuard_trainer/full_runs/street_walk_day1_train_val \
+        --da2-ckpt $GG_DATA_ROOT/Depth-Anything-V2/checkpoints/depth_anything_v2_vits.pth \
         --output-dir /tmp/normal_head_out \
         --epochs 60 \
         --batch-size 32
@@ -60,11 +60,11 @@ def parse_args() -> argparse.Namespace:
         "--data-dirs",
         nargs="+",
         default=[
-            "/ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/train_train_val",
-            "/ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/campus_walk2_train_val",
-            "/ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/campus_wallk1_train_val",
-            "/ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/street_walk_day1_train_val",
-            "/ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/street_walk_day2_train_val",
+            "$GG_DATA_ROOT/GlassGuard_trainer/full_runs/train_train_val",
+            "$GG_DATA_ROOT/GlassGuard_trainer/full_runs/campus_walk2_train_val",
+            "$GG_DATA_ROOT/GlassGuard_trainer/full_runs/campus_wallk1_train_val",
+            "$GG_DATA_ROOT/GlassGuard_trainer/full_runs/street_walk_day1_train_val",
+            "$GG_DATA_ROOT/GlassGuard_trainer/full_runs/street_walk_day2_train_val",
         ],
         help="One or more roots of DA2-annotated datasets (each containing per-image subfolders).",
     )
@@ -75,7 +75,7 @@ def parse_args() -> argparse.Namespace:
     )
     ap.add_argument(
         "--output-dir",
-        default="/ocean/projects/cis220039p/mdt2/hguo7/Depth-Anything-V2/normal_head_out",
+        default="$GG_DATA_ROOT/Depth-Anything-V2/normal_head_out",
         help="Directory for saved checkpoints and logs.",
     )
     ap.add_argument("--input-size", type=int, default=518,
@@ -894,15 +894,15 @@ if __name__ == "__main__":
 
 
 # ─── Example run ──────────────────────────────────────────────────────────
-# python /ocean/projects/cis220039p/mdt2/hguo7/Depth-Anything-V2/train_normal_head_dav2.py \
+# python $GG_DATA_ROOT/Depth-Anything-V2/train_normal_head_dav2.py \
 #     --data-dirs \
-#         /ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/train_train_val \
-#         /ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/campus_walk2_train_val \
-#         /ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/campus_wallk1_train_val \
-#         /ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/street_walk_day1_train_val \
-#         /ocean/projects/cis220039p/mdt2/hguo7/GlassGuard_trainer/full_runs/street_walk_day2_train_val \
-#     --da2-ckpt /ocean/projects/cis220039p/mdt2/hguo7/Depth-Anything-V2/checkpoints/depth_anything_v2_vits.pth \
-#     --output-dir /ocean/projects/cis220039p/mdt2/hguo7/Depth-Anything-V2/normal_head_out \
+#         $GG_DATA_ROOT/GlassGuard_trainer/full_runs/train_train_val \
+#         $GG_DATA_ROOT/GlassGuard_trainer/full_runs/campus_walk2_train_val \
+#         $GG_DATA_ROOT/GlassGuard_trainer/full_runs/campus_wallk1_train_val \
+#         $GG_DATA_ROOT/GlassGuard_trainer/full_runs/street_walk_day1_train_val \
+#         $GG_DATA_ROOT/GlassGuard_trainer/full_runs/street_walk_day2_train_val \
+#     --da2-ckpt $GG_DATA_ROOT/Depth-Anything-V2/checkpoints/depth_anything_v2_vits.pth \
+#     --output-dir $GG_DATA_ROOT/Depth-Anything-V2/normal_head_out \
 #     --epochs 80 \
 #     --batch-size 32 \
 #     --lr 1e-3 \

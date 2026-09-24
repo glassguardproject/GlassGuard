@@ -18,7 +18,7 @@ Usage (GPU node):
   python finetune_mlp_pruned_full.py \\
       --student-ckpt finetune_full32_mlp_3072/student_best.pt \\
       --student-meta finetune_full32_mlp_3072/mlp_pruned_meta.json \\
-      --orig-ckpt    /ocean/projects/cis220039p/mdt2/hguo7/sam3/sam3.pt \\
+      --orig-ckpt    $GG_DATA_ROOT/sam3/sam3.pt \\
 C      --output-dir   finetune_full32_mlp_3072_v2 \\
       --steps 1500 --lr 1e-4 --logit-weight 0.5 --dense-every 4
 """
