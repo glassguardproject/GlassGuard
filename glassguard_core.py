@@ -7182,7 +7182,7 @@ class _PlaneTracker:
         self.path = []                                    # robot trace: (ground_a, ground_b, height) per frame
         self.placed_hist = []                             # every per-frame PLACED quad (frame_id, world 4x3)
         self.fix_after = int(getattr(args, "track_fix_after", 0))   # 0 = NEVER fix: planes always compete
-        # Per-track gate diagnostics ({bldgA ...} in the log) are pure overhead in the live path -- only
+        # Per-track gate diagnostics ({gates ...} in the log) are pure overhead in the live path -- only
         # build them when track_debug is set (the batch turns it on to explain merges; the node leaves off).
         self.debug = bool(getattr(args, "track_debug", False))
         self.planes: List[_TrackedPlane] = []
@@ -9528,7 +9528,7 @@ def _pillar_cling_box(S, rep, r=0.18):
 
 def _pillar_valid(p: Dict, args) -> bool:
     """SHARED vertical-pillar validity test (solver pre-pass, in-clench fallback, doorway gate):
-    >= min_layers occupied slices, > min_pts seed points, and the two COLUMN-NESS bldgA --
+    >= min_layers occupied slices, > min_pts seed points, and the two COLUMN-NESS gates --
     fill ratio >= clench_pillar_min_fill (occupied/spanned slices: rejects sparse strays scattered
     over a big span) and horizontal seed extent <= clench_pillar_max_xz_ext_m (rejects clutter
     spread across the cell, which also drags the rep centroid into empty space)."""
@@ -9622,7 +9622,7 @@ def _horizontal_bars_2d(xyz, uv, args, max_keep=2):
         if len(seg) < min_pts:
             continue
         R = R[seg]                                                 # stray outliers removed, real span kept
-        # Re-fit direction + bldgA on the trimmed points only.
+        # Re-fit direction + gates on the trimmed points only.
         c3 = R.mean(0); B = R - c3
         _, _, vt3b = np.linalg.svd(B, full_matrices=False)
         dh = np.array([float(vt3b[0][0]), 0.0, float(vt3b[0][2])], np.float32)
@@ -9946,7 +9946,7 @@ def _horizontal_bars_pinhole_pca(xyz, args, corner_rays, max_keep=2):
        intersect the mask's 4 corner rays with it -> a candidate quad; run the SAME 20%%
        opposite-side parallelogram check (clench_side_diff_frac[_h]) RIGHT HERE. A passing
        candidate is marked par_pre_ok and the downstream par check is SKIPPED for it --
-       which is what lets the PCA bldgA stay loose without letting junk through."""
+       which is what lets the PCA gates stay loose without letting junk through."""
     P = np.asarray(xyz, np.float32).reshape(-1, 3)
     out: List[Dict] = []
     min_pts = int(getattr(args, "clench_h_min_pts", 5))
@@ -10233,7 +10233,7 @@ def _horizontal_bars_rect_band(xyz, uv, W, H, args, max_keep=2, mask=None, corne
         # NOTE: no direction gate here. A real rail seen very obliquely (~75deg) is geometrically
         # indistinguishable from a collinear-background radial line at THIS stage (measured: real
         # L/az-chord 3.8 vs fake 4.4) -- separating them is the job of the downstream par / floor /
-        # occlusion / coverage bldgA on the actual candidate plane.
+        # occlusion / coverage gates on the actual candidate plane.
         # (2+3) RANSAC the ground-plane (X,Z) LINE on the silhouette-edge points: the STRONG RAIL
         # VOTES FOR ITSELF. The old endpoint-direction + median-centered band both break under
         # heavy background contamination (the chain's endpoints ARE background, and the median
@@ -10969,7 +10969,7 @@ def _clench_plane_corners(rec, seed_pts, args, info=None,
     plane_thick = float(getattr(args, "clench_plane_thickness_m", 0.2))    # wall half-thickness (m)
     _validate = (mask is not None) and (scene_depth is not None) and (W is not None) and (H is not None)
 
-    # --- Shared bldgA (used by BOTH the one-pillar and multi-pillar branches) ---------------
+    # --- Shared gates (used by BOTH the one-pillar and multi-pillar branches) ---------------
     par_frac = float(getattr(args, "clench_side_diff_frac", 0.2))          # vertical-side (dv) tolerance
     par_frac_h = float(getattr(args, "clench_side_diff_frac_h", 0.2))      # horizontal-side (dh) tolerance
     par_check_on = bool(getattr(args, "par_check", True))                  # --no-par-check disables the gate
@@ -11661,7 +11661,7 @@ def _clench_plane_corners(rec, seed_pts, args, info=None,
             return _par_check_diag_robust(rc, i, j, R, tag=tag)
         _par_dbg.clear()                                   # no stale robust detail on the classic path
         rc_t = rect_rays_touch(i, j, R, rays)              # per-corner-ray touch quad (real dv/dh)
-        # COMPANION metric (logged, never bldgA): the vector-form parallelogram defect
+        # COMPANION metric (logged, never gates): the vector-form parallelogram defect
         # |(TL-TR)-(BL-BR)| in PIXELS at the quad's depth -- scale-free from sliver panes to 10m
         # walls. Collect for a while; if it separates pass/fail better than the dv ratio, it is
         # the data-backed successor.
@@ -11720,7 +11720,7 @@ def _clench_plane_corners(rec, seed_pts, args, info=None,
     # sets the ground-line DIRECTION directly (its own horizontal orientation) at its own depth,
     # assuming gravity (plane still vertical). rect_span expands it to the mask's left/right rays
     # (width) + up/down ray heights (height), then it goes through the SAME parallelogram +
-    # occlusion bldgA as every other candidate. Best passing horizontal rectangle competes on
+    # occlusion gates as every other candidate. Best passing horizontal rectangle competes on
     # seed coverage with the vertical-pillar result in every branch below.
     def _eval_horizontal():
         best_h = None                                    # (cov, corners, st, ray_corners)
@@ -11934,7 +11934,7 @@ def _clench_plane_corners(rec, seed_pts, args, info=None,
                 """Set the ground line through the single pillar with a given horizontal direction
                 (dvec) OR toward a borrowed neighbour pillar (cand); expand + bound by the mask's OWN
                 left/right rays (width) and up/down rays (height); run the SAME floor-touch +
-                occlusion bldgA. Keep the highest-coverage passer. Mutates best / fail counters."""
+                occlusion gates. Keep the highest-coverage passer. Mutates best / fail counters."""
                 nonlocal best, best_borrow, n_par_fail, n_occ_fail, n_floor_fail
                 if cand is not None and cand.get("plane_dir") is not None:
                     # BORROW the NEIGHBOUR's fitted-plane direction (colinear continuation of its wall),
@@ -12042,7 +12042,7 @@ def _clench_plane_corners(rec, seed_pts, args, info=None,
         if h_best is not None:
             return _horiz_ret(h_best)
         # Show each near-miss cell's full validity numbers so a pillar rejected by the NEW
-        # column-ness bldgA (fill / xz-extent) is distinguishable from a plain too-few-layers cell.
+        # column-ness gates (fill / xz-extent) is distinguishable from a plain too-few-layers cell.
         _cells = sorted(pillars, key=lambda p: -int(p["layers"]))[:6]
         _cinfo = [f"(L={int(p['layers'])},n={int(p['count'])},fill={float(p.get('fill', 1.0)):.2f},"
                   f"ext={float(p.get('xz_ext', 0.0)):.2f}m)" for p in _cells]
@@ -12305,7 +12305,7 @@ def _compute_all_clench(big_idx, mask_ray_records, seed_records, args,
         # PER-SMALL-MASK bars: the pooled extraction can miss a clean rail when a big mask's
         # mixed seed pool (several panes at different depths/heights) drowns it. Re-run the
         # extractor on each owned small mask's OWN seed subset and append novel bars (dedup by
-        # rep proximity + direction). Same bldgA downstream; only candidate generation widens.
+        # rep proximity + direction). Same gates downstream; only candidate generation widens.
         _uniq = {}
         for _k, (_p, _q, _sid) in enumerate(recs):
             if _sid >= 0:
@@ -12341,7 +12341,7 @@ def _compute_all_clench(big_idx, mask_ray_records, seed_records, args,
     # For each ONE-pillar mask, BORROW adjacent neighbour pillars: any valid pillar of ANOTHER
     # mask whose top-down cell is ADJACENT (within +/-1 grid cell, ~bin_m ~ 1 m) to this pillar.
     # No colinearity required. Each becomes a pairing CANDIDATE; the solver pairs the single
-    # pillar with each and keeps the best one that passes the parallelogram + occlusion bldgA.
+    # pillar with each and keeps the best one that passes the parallelogram + occlusion gates.
     def _cell_of(p):
         return (int(np.floor(float(p[0]) / _bin_m)), int(np.floor(float(p[2]) / _bin_m)))
     _t_borrow = time.perf_counter()
@@ -16692,7 +16692,7 @@ def process_frame(
 
     # SMALL-MASK FALLBACK (capped): a failed big mask retries with the LARGEST K small masks it
     # owns (area-gated). The smalls run the identical machinery -- own ray records, re-owned seed
-    # subset, pillars, clench, all bldgA -- and successful planes join big_idx for the tracker.
+    # subset, pillars, clench, all gates -- and successful planes join big_idx for the tracker.
     if bool(getattr(args, "clench_small_fallback", False)):
         _t_fb = time.perf_counter()
         _fb_K = int(getattr(args, "small_fallback_topk", 2))
@@ -18116,7 +18116,7 @@ def parse_args() -> argparse.Namespace:
                          "project just INSIDE the mask (over-covering masks, rail caps).")
     ap.add_argument("--clench-small-fallback", action="store_true", default=False,
                     help="When a BIG mask fails to place a plane, retry with the LARGEST K small "
-                         "masks it owns (full machinery: rays, re-owned seeds, pillars, all bldgA). "
+                         "masks it owns (full machinery: rays, re-owned seeds, pillars, all gates). "
                          "Rescues composite masks whose merged geometry confuses the support quad.")
     ap.add_argument("--small-fallback-topk", type=int, default=2,
                     help="Small-mask fallback: try at most this many (largest-area) owned smalls per failed big.")

@@ -191,7 +191,7 @@ def build_args(node: "GlassGuardNode") -> SimpleNamespace:
         argv += ["--pinhole-par-tau-m", str(float(g("par_360_tau_m", 0.5)))]
     # Angle-gate disarm threshold (support-edge px span under which d3 is deemed ill-conditioned
     # -> dv/dh fallback). 0 = never disarm: a trusted support line ALWAYS judges via the angle
-    # test (the mask sizes the quad; dv/dh only bldgA untrusted masks with no support line).
+    # test (the mask sizes the quad; dv/dh only gates untrusted masks with no support line).
     argv += ["--pinhole-dir-trust-min-span-px", str(float(g("par_min_span_px", 140.0)))]
     # CONDITIONING floor for the trusted support-edge direction (both camera models): rules out
     # the camera-height/short-span degeneracy where a straight line carries no yaw information.
@@ -210,7 +210,7 @@ def build_args(node: "GlassGuardNode") -> SimpleNamespace:
     if not bool(g("h_edge_curve", True)):
         argv.append("--no-clench-h-edge-curve")
     argv += ["--clench-h-ray-hit-tol-px", str(float(g("h_ray_hit_tol_px", 14.0)))]
-    # Vertical-pillar COLUMN-NESS bldgA (validated on keysave frame 216 mask 5: 3 real mullions
+    # Vertical-pillar COLUMN-NESS gates (validated on keysave frame 216 mask 5: 3 real mullions
     # fill 0.57-0.91 kept, 2 scattered-stray cells fill 0.18-0.21 rejected): occupied/spanned layer
     # fill ratio + horizontal seed extent per 1m cell. pillar_min_fill:=0 disables.
     argv += ["--clench-pillar-depth-gap-m", str(float(g("pillar_depth_gap_m", 0.2)))]
@@ -609,7 +609,7 @@ class GlassGuardNode(Node):
         self.pub_topdown = self.create_publisher(Image, "/glassguard/topdown_map", 1)
         # DEMO (viz_full:=true): the four --full-visual demo images, published LIVE instead of saved.
         # They render on the existing async panel thread, so inference is never blocked.
-        if self.viz_full:                 # declared earlier (it also bldgA the uniform recolor)
+        if self.viz_full:                 # declared earlier (it also gates the uniform recolor)
             self.pub_viz_tug = self.create_publisher(Image, "/glassguard/viz/floor_seed_tug", 1)
             self.pub_viz_compete = self.create_publisher(Image, "/glassguard/viz/plane_compete", 1)
             self.pub_viz_pillars = self.create_publisher(Image, "/glassguard/viz/pillars_topdown", 1)
