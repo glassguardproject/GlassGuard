@@ -37,7 +37,7 @@ SAVE_INPUT=false       # dump raw cloud+rgb per frame (replayable)(node: save_in
 SAVE_OUTPUT=${SAVE_OUTPUT:-true}   # auto-save the global floor/plane map PNG (node: save_auto_map); env-overridable
 MINIMAL_SAVE=false     # SPACE dump: true=minimal, false=full     (node: keysave_full = !MINIMAL_SAVE)
 PRECISION=bf16        # bf16 | int8 | fp32                       (node: precision)
-OBSTACLE_MODE=both     # scan | added | both | off (off = NO glass obstacle injection anywhere)
+OBSTACLE_MODE=${OBSTACLE_MODE:-both}     # scan | added | both | off (off = NO glass obstacle injection anywhere)
 CONF_TH=0.3           # SAM3 detection confidence               (node: conf_th)
 COV_TH=0.1           # min seed-coverage frac to place a plane  (node: min_cov; 0.0=pick top-cov, 0.20=old)
 EMPTY_CACHE_EVERY=0  # torch empty_cache every N frames to cap VRAM (0=keep-warm/fast; 1=~1GB, slower)

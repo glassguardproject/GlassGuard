@@ -325,8 +325,8 @@ Visualization Manager:
       Use rainbow: false
       Value: true
   - Class: rviz_common/Group
-    Name: 3 Optional (your stack's planner / terrain)
-    Enabled: false
+    Name: 3 Planner view (stack terrain + path, GG obstacle feed)
+    Enabled: true
     Displays:
     - Alpha: 1
       Autocompute Intensity Bounds: false
@@ -340,7 +340,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 1.5
@@ -366,7 +366,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz_default_plugins/Path
       Color: 25; 255; 0
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -402,7 +402,7 @@ Visualization Manager:
       Color: 0; 170; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: false
+      Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 6
@@ -473,6 +473,39 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
+    - Class: rviz_default_plugins/PointCloud2
+      Name: AddedObstacles (GG->planner)
+      Enabled: true
+      Topic:
+        Value: /added_obstacles
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Filter size: 10
+      Style: Flat Squares
+      Size (m): 0.1
+      Color: 255; 128; 0
+      Color Transformer: FlatColor
+      Position Transformer: XYZ
+      Alpha: 1
+      Decay Time: 0
+      Autocompute Intensity Bounds: true
+      Use Fixed Frame: true
+      Queue Size: 10
+      Selectable: true
+      Invert Rainbow: false
+      Use rainbow: true
+      Min Color: 0; 0; 0
+      Max Color: 255; 255; 255
+      Min Intensity: 0
+      Max Intensity: 4096
+      Channel Name: intensity
+      Axis: Z
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
