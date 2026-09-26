@@ -2,6 +2,7 @@
 # no-SHM transport: stale /dev/shm segments from killed nodes break later runs (see ~/.ros/fastdds_no_shm.xml)
 export FASTDDS_DEFAULT_PROFILES_FILE=$HOME/.ros/fastdds_no_shm.xml
 export FASTRTPS_DEFAULT_PROFILES_FILE=$HOME/.ros/fastdds_no_shm.xml
+GG_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # repo root; subshells below cd elsewhere
 # One-shot launcher for the FULL GlassGuard bag pipeline. The GlassGuard NODE starts FIRST (loads
 # its models in the foreground); everything else (stack, provider, republish, bag) is brought up in
 # parallel right after, so they load while the node loads.
@@ -279,7 +280,7 @@ deferred_start() {
       ( cd "$STACK_DIR" && source ./install/setup.bash
         ros2 launch vehicle_simulator system_bagfile_with_exploration_planner.launch & sleep 1
         if [ "${VIZ_FULL:-false}" = "true" ]; then     # demo layout: the 4 pipeline-stage images
-          exec ros2 run rviz2 rviz2 -d ./rviz/glassguard_demo.rviz
+          exec ros2 run rviz2 rviz2 -d "$GG_ROOT/rviz/glassguard_demo.rviz"
         else
           exec ros2 run rviz2 rviz2 -d src/base_autonomy/vehicle_simulator/rviz/vehicle_simulator_tare.rviz
         fi ) &
@@ -369,7 +370,7 @@ deferred_start() {
       if [ "${VIZ_FULL:-false}" = "true" ]; then
         ( cd "$STACK_DIR" && source ./install/setup.bash
           ros2 launch vehicle_simulator system_bagfile.launch & sleep 1
-          exec ros2 run rviz2 rviz2 -d ./rviz/glassguard_demo.rviz ) &
+          exec ros2 run rviz2 rviz2 -d "$GG_ROOT/rviz/glassguard_demo.rviz" ) &
       elif [ "${RVIZ_FULLSCREEN:-false}" = "true" ]; then
         # standard stack RViz layout, but fullscreen so a screen recorder captures only RViz
         ( cd "$STACK_DIR" && source ./install/setup.bash
