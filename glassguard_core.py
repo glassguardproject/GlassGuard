@@ -8200,45 +8200,77 @@ class _PlaneTracker:
                         job, path = self._spill_dump_q.get()
                         try:
                             if job[0] == "json":
+                                _os.makedirs(_os.path.dirname(path), exist_ok=True)
                                 with open(path, "w") as f:
                                     _json.dump(job[1], f, indent=1)
-                            elif job[0] == "strip":
-                                tiles = [_cv.imdecode(np.frombuffer(b, np.uint8), _cv.IMREAD_COLOR)
-                                         for b in job[1]]
-                                tiles = [t for t in tiles if t is not None]
-                                if tiles:
-                                    th, tw = tiles[0].shape[:2]
-                                    cols = 4
-                                    rows = (len(tiles) + cols - 1) // cols
-                                    strip = np.zeros((rows * (th + 2) + 20, cols * (tw + 2), 3), np.uint8)
-                                    _cv.putText(strip, f"pid {job[3]}  {job[2]}  ({len(tiles)} checks, oldest->newest)",
-                                                (4, 14), _cv.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
-                                    for i, t in enumerate(tiles):
+                            elif job[0] == "track":
+                                # One folder per evicted plane:
+                                #   NN_<status>.png  every check, in order, banner = tug state
+                                #   track.png        all checks side by side, newest last
+                                #   track.json       the full history (see _spill_dump_async)
+                                _, tiles, reason, pid, hist = job
+                                _os.makedirs(path, exist_ok=True)
+                                imgs = []
+                                for i, (b, h) in enumerate(zip(tiles, hist)):
+                                    if not b:
+                                        continue
+                                    t = _cv.imdecode(np.frombuffer(b, np.uint8), _cv.IMREAD_COLOR)
+                                    if t is None:
+                                        continue
+                                    st = str(h.get("st", "")).replace("/", "of").replace(" ", "_")
+                                    if h.get("skip"):
+                                        st = f"SKIP-{h['skip']}"     # gate that blocked this check
+                                    _cv.imwrite(_os.path.join(path, f"{i:02d}_{st}.png"), t)
+                                    imgs.append(t)
+                                if imgs:
+                                    th, tw = imgs[0].shape[:2]
+                                    cols = min(3, len(imgs))
+                                    rows = (len(imgs) + cols - 1) // cols
+                                    strip = np.zeros((rows * (th + 2) + 22, cols * (tw + 2), 3), np.uint8)
+                                    _cv.putText(strip, f"pid {pid}  EVICTED: {reason}  ({len(imgs)} checks, oldest->newest)",
+                                                (4, 15), _cv.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
+                                    for i, t in enumerate(imgs):
                                         r, c = divmod(i, cols)
-                                        y = 20 + r * (th + 2); x = c * (tw + 2)
+                                        y = 22 + r * (th + 2); x = c * (tw + 2)
                                         strip[y:y + th, x:x + tw] = t
-                                    _cv.imwrite(path, strip)
+                                    _cv.imwrite(_os.path.join(path, "track.png"), strip)
                         except Exception:
                             pass
                 _th.Thread(target=_writer, daemon=True).start()
             _os.makedirs(self.spill_debug_dir, exist_ok=True)
-            hist_raw = self._spill_hist.get(tp.pid, [])
-            tiles = [h["_img"] for h in hist_raw if h.get("_img")]
+            hist_raw = list(self._spill_hist.get(tp.pid, []))
+            # snapshot NOW (the writer thread runs later): images out, everything else json-safe
+            tiles = [h.get("_img") for h in hist_raw]
             hist = [{k: v for k, v in h.items() if k != "_img"} for h in hist_raw]
-            rec = {"pid": int(tp.pid), "mask": int(tp.mask), "reason": reason,
+            # per-check story: which checks set the median, which moved the tug, which one evicted
+            for i, h in enumerate(hist):
+                st = str(h.get("st", ""))
+                h["check_no"] = i
+                h["role"] = ("calibrate" if st.startswith("CALIB") else
+                             "evict" if st.startswith("EVICT") else
+                             "tug" if st.startswith("TUG") else
+                             "skipped" if h.get("skip") else "check")
+            calib = [h["spill"] for h in hist if h["role"] == "calibrate"]
+            rec = {"pid": int(tp.pid), "mask": int(tp.mask),
+                   "evicted": True, "reason": reason,
+                   "final_check": len(hist) - 1,
+                   "median_from_checks": [h["check_no"] for h in hist if h["role"] == "calibrate"],
+                   "median_spill": (round(float(np.median(calib)), 4) if calib else None),
+                   "spill_base": float(tp.spill_base) if tp.spill_base_samples else None,
+                   "tug_rule": f"+1 when spill > base+{self.spill_tug_start:.2f} and rising, -1 when falling, "
+                               f"evict at {self.spill_persist}; hard evict at spill >= {self.spill_hard_frac:.2f}",
                    "color": [int(c) for c in tp.color],
                    "p0": [float(x) for x in np.asarray(tp.p0).reshape(3)],
                    "p1": [float(x) for x in np.asarray(tp.p1).reshape(3)],
                    "v0": float(tp.v0) if tp.v0 is not None else None,
                    "v1": float(tp.v1) if tp.v1 is not None else None,
-                   "spill_base": float(tp.spill_base) if tp.spill_base_samples else None,
-                   "n_checks": len(self._spill_hist.get(tp.pid, [])),
-                   "history": self._spill_hist.get(tp.pid, []), **extra}
-            stem = _os.path.join(self.spill_debug_dir,
-                                 f"evict_{int(_t.time()*1000)%10**9}_pid{tp.pid}")
-            self._spill_dump_q.put_nowait((("json", rec), stem + ".json"))
-            if tiles:
-                self._spill_dump_q.put_nowait((("strip", tiles[-36:], reason, int(tp.pid)), stem + ".png"))
+                   "n_checks": len(hist), "history": hist, **extra}
+            tag = "hard" if "HARD" in reason else "tug" if "TUG" in reason else "sweep" if "SWEEP" in reason else "other"
+            self._spill_evict_seq = getattr(self, "_spill_evict_seq", 0) + 1
+            folder = _os.path.join(self.spill_debug_dir,
+                                   f"{self._spill_evict_seq:03d}_pid{tp.pid}_{tag}")
+            self._spill_dump_q.put_nowait((("json", rec), _os.path.join(folder, "track.json")))
+            self._spill_dump_q.put_nowait((("track", tiles, reason, int(tp.pid), hist), folder))
         except Exception:
             pass
 

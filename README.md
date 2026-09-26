@@ -86,6 +86,20 @@ The Slim-2816 student checkpoint and the cached text embedding are distributed s
 `slim_sam3/prompt_features/`. The pruning recipe in `slim_sam3/` reproduces the student from the
 public SAM 3 release.
 
+## Multi-view eviction debug
+
+`SPILL_DEBUG_DIR=<dir>` records every plane evicted by multi-view verification, one folder per
+plane, numbered in eviction order and tagged by mechanism (`003_pid2_hard`, `006_pid13_tug`):
+
+* `NN_<status>.png` — each spill check in order. Green = plane samples on the glass mask, red =
+  off-mask (spill). The banner gives the check number, spill %, the plane's own baseline %, the tug
+  count, and the state: `CALIB 1/2`, `CALIB 2/2` (the two checks whose median sets the baseline),
+  `TUG+1 1/2` / `TUG-1 0/2` (the counter moving), `SKIP-<gate>` (a check blocked by the movement,
+  visibility, coverage or distance gate), and `EVICT-HARD` / `EVICT-TUG` on the frame that evicted.
+* `track.png` — all checks side by side, oldest to newest.
+* `track.json` — the full history with the same fields, plus `median_from_checks`, `median_spill`,
+  `final_check`, the eviction `reason`, and the rule in force.
+
 ## Evaluated configuration
 
 All thresholds are set in `run_glassguard.sh` and were frozen across the experiments

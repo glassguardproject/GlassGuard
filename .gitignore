@@ -7,3 +7,5 @@ __pycache__/
 slim_sam3/checkpoints/*.pt
 slim_sam3/checkpoints/student_final.pt
 slim_sam3/prompt_features/
+# per-run multi-view eviction debug dumps (SPILL_DEBUG_DIR)
+spill_debug*/
