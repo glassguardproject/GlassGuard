@@ -22,7 +22,9 @@ Navigation* (under review). Project page: https://glassguardproject.github.io/
 Machine-specific paths were replaced by environment variables (defaults in parentheses):
 
 * `GG_DATA_ROOT` — recordings, ground truth and evaluation outputs (`~/glassguard_data`)
-* `GG_ROS_WS` — the ROS 2 workspace containing `ros/extrinsic_latency_calib` (`~/ros_ws`)
+* `GG_ROS_WS` — the ROS 2 workspace containing `ros/extrinsic_latency_calib` (`~/ros_ws`).
+  Build it with `colcon build --packages-select extrinsic_latency_calib` from a shell where
+  conda is **not** active: a conda `libcurl` on the library path breaks the PCL/GDAL link step.
 * `GG_AUTONOMY_STACK` — the LiDAR autonomy stack (`~/autonomy_stack`)
 * `GG_BASELINES`, `GG_DA2` — baseline checkouts, used only for the baseline comparisons
 

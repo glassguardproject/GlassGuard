@@ -388,7 +388,7 @@ deferred_start() {
   if [ "$LAUNCH_PROVIDER" = "true" ]; then
     echo "[launcher] starting glassguard provider..."
     ( source "$ROS_SETUP"; [ -f "$CAM_INSTALL" ] && source "$CAM_INSTALL"
-      exec ros2 launch extrinsic_latency_calib glassguard.launch maxRange:=${RANGE_M}.0 \
+      exec ros2 launch extrinsic_latency_calib ${PROVIDER_LAUNCH:-glassguard.launch} maxRange:=${RANGE_M}.0 \
         imageLatencyOffset:=${IMAGE_LATENCY:-0.0} ) &
     sleep 3
   fi
@@ -488,7 +488,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True   # trim reserved pool /
 launch_node() {  # $1 = node .py, $2 = extra --ros-args (role); PIPELINE reuses this verbatim
 # slim_sam3/ holds load_slim_sam3.py, imported by bare name from glass_frame_ring.build_sam3
 export PYTHONPATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/slim_sam3:$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)${PYTHONPATH:+:$PYTHONPATH}"
-conda run -n sam3 --no-capture-output python "$1" --ros-args $2 \
+conda run -n sam3 --no-capture-output python "$1" --ros-args $2 ${NODE_EXTRA_ARGS:-} \
   -p pinhole_cfg:="'$PINHOLE_CFG'" \
   -p gt_planes_json:="'$GT_JSON'" \
   -p gt_align_icp:=$GT_ALIGN_CLOUD \
@@ -569,5 +569,5 @@ if [ "${PIPELINE:-true}" = "true" ]; then
   sleep 8    # let the mapping node subscribe to /ggpipe/geom before perception starts publishing
   launch_node ./glassguard_node/glassguard_node.py "-p role:=perception"
 else
-  launch_node ./glassguard_ros_node.py ""
+  launch_node ./glassguard_node/glassguard_node.py ""
 fi
