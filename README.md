@@ -25,10 +25,30 @@ Machine-specific paths were replaced by environment variables (defaults in paren
 * `GG_ROS_WS` — the ROS 2 workspace containing `ros/extrinsic_latency_calib` (`~/ros_ws`).
   Build it with `colcon build --packages-select extrinsic_latency_calib` from a shell where
   conda is **not** active: a conda `libcurl` on the library path breaks the PCL/GDAL link step.
-* `GG_AUTONOMY_STACK` — the LiDAR autonomy stack (`~/autonomy_stack`)
+* `GG_AUTONOMY_STACK` — the LiDAR autonomy stack (`~/autonomy_stack`). See *Input interface* below;
+  any stack that publishes the listed topics can be used.
 * `GG_BASELINES`, `GG_DA2` — baseline checkouts, used only for the baseline comparisons
 
 Scene identifiers in the scripts (`bldgA_f5`, `bldgB_atrium`, …) match the project page.
+
+## Input interface
+
+GlassGuard does not read raw sensors. The provider node (`glassGuardProvider`) subscribes to
+three topics that a LiDAR SLAM / autonomy stack is expected to publish:
+
+| Topic | Type | Contents |
+|---|---|---|
+| `/registered_scan` | `sensor_msgs/PointCloud2` | the current LiDAR scan registered into the world (`map`) frame |
+| `/state_estimation` | `nav_msgs/Odometry` | the robot pose in the same world frame, time-stamped with the scan |
+| `/camera/image` | `sensor_msgs/Image` | the raw RGB image (the launcher republishes it from `/camera/image/compressed`) |
+
+Optionally, with `TERRAIN_FLOOR=true`, the node also subscribes to `/terrain_map`
+(`sensor_msgs/PointCloud2`, intensity = height above ground; points with intensity ≤ 0.1 m are
+treated as floor). Set `TERRAIN_FLOOR=false` to run without it.
+
+Any stack meeting this contract works. Our experiments used the TARE autonomy stack
+(Cao et al., RSS 2021), as cited in the paper, which also supplies the local planner and terrain
+analysis that consume the published planes.
 
 ## Dependencies
 
