@@ -8166,7 +8166,7 @@ class _PlaneTracker:
         as background, this plane's visible samples GREEN(on-mask)/RED(spill), stats banner.
         Returns encoded JPG bytes (kept in the history; stripped from the JSON dump)."""
         import cv2 as _cv
-        S = 3                                             # downscale factor
+        S = 2                                             # downscale factor (1920 -> 960 wide)
         h, w = H // S, W // S
         if self._dbg_bgr is not None and getattr(self._dbg_bgr, "shape", None):
             bg = _cv.resize(self._dbg_bgr, (w, h), interpolation=_cv.INTER_AREA)
@@ -8182,10 +8182,36 @@ class _PlaneTracker:
         for dy in (-1, 1):                                # thicken samples 1px vertically
             bg[np.clip(vv[inm]+dy,0,h-1), uu[inm]] = (0, 255, 0)
             bg[np.clip(vv[~inm]+dy,0,h-1), uu[~inm]] = (0, 0, 255)
-        _cv.rectangle(bg, (0, 0), (w - 1, 16), (0, 0, 0), -1)
-        _cv.putText(bg, f"c{self._spill_frame_no} sp{spill*100:.0f}% b{(tp.spill_base*100 if tp.spill_base_samples else -1):.0f} "
-                        f"h{tp.spill_hits} {st}", (3, 12), _cv.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1)
-        ok, buf = _cv.imencode(".jpg", bg, [int(_cv.IMWRITE_JPEG_QUALITY), 82])
+        # ---- three-line banner: what was measured, where the tug stands, what was decided ----
+        base_txt = (f"{tp.spill_base*100:.0f}%" if tp.spill_base_samples else "not set")
+        excess = (spill - tp.spill_base) if tp.spill_base_samples else None
+        l1 = (f"check {self._spill_frame_no}   spill {spill*100:.0f}%   plane baseline {base_txt}"
+              + (f"   excess {excess*100:+.0f}% (tug fires above +{self.spill_tug_start*100:.0f}%)" if excess is not None else "")
+              + f"   hard-evict at {self.spill_hard_frac*100:.0f}%")
+        l2 = f"tug count {tp.spill_hits}/{self.spill_persist}"
+        if st.startswith("CALIB"):
+            l3 = f"CALIBRATING baseline: sample {st.split()[1]} -- no decision yet"; col = (0, 220, 255)
+        elif st.startswith("EVICT-HARD"):
+            l3 = f"EVICTED: hard threshold ({spill*100:.0f}% >= {self.spill_hard_frac*100:.0f}%), tug bypassed"; col = (0, 0, 255)
+        elif st.startswith("EVICT-TUG"):
+            l3 = f"EVICTED: tug reached {self.spill_persist}/{self.spill_persist}"; col = (0, 0, 255)
+        elif st.startswith("EVICT"):
+            l3 = f"EVICTED: {st}"; col = (0, 0, 255)
+        elif st.startswith("TUG+1"):
+            l3 = "rising above baseline -> tug +1   (kept)"; col = (0, 165, 255)
+        elif st.startswith("TUG-1"):
+            l3 = "fell back -> tug -1   (kept)"; col = (0, 255, 0)
+        elif st.startswith("TUG"):
+            l3 = "within baseline -> tug unchanged   (kept)"; col = (0, 255, 0)
+        else:
+            l3 = f"not judged this frame ({st})"; col = (160, 160, 160)
+        _cv.rectangle(bg, (0, 0), (w - 1, 52), (0, 0, 0), -1)
+        _cv.putText(bg, l1, (4, 13), _cv.FONT_HERSHEY_SIMPLEX, 0.40, (255, 255, 255), 1)
+        _cv.putText(bg, l2, (4, 30), _cv.FONT_HERSHEY_SIMPLEX, 0.40, (255, 255, 255), 1)
+        _cv.putText(bg, l3, (4, 47), _cv.FONT_HERSHEY_SIMPLEX, 0.46, col, 1)
+        _cv.putText(bg, "green = on glass mask   red = spill (off mask)", (w - 300, h - 6),
+                    _cv.FONT_HERSHEY_SIMPLEX, 0.36, (200, 200, 200), 1)
+        ok, buf = _cv.imencode(".jpg", bg, [int(_cv.IMWRITE_JPEG_QUALITY), 88])
         return buf.tobytes() if ok else None
 
     def _spill_dump_async(self, tp, reason, extra):
