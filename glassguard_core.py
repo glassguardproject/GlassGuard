@@ -8229,74 +8229,91 @@ class _PlaneTracker:
                                 _os.makedirs(_os.path.dirname(path), exist_ok=True)
                                 with open(path, "w") as f:
                                     _json.dump(job[1], f, indent=1)
+                            elif job[0] == "append":
+                                _os.makedirs(_os.path.dirname(path), exist_ok=True)
+                                with open(path, "a") as f:
+                                    f.write(job[1])
                             elif job[0] == "track":
-                                # One folder per evicted plane:
-                                #   NN_<status>.png  every check, in order, banner = tug state
-                                #   track.png        all checks side by side, newest last
-                                #   track.json       the full history (see _spill_dump_async)
-                                _, tiles, reason, pid, hist = job
+                                # ONE image per evicted plane: every judged check as a tile on the
+                                # real panorama; a run of consecutive skipped checks collapses to a
+                                # single small tile that names the span and the gate.
+                                _, tiles, reason, pid, hist, mask = job
                                 _os.makedirs(path, exist_ok=True)
-                                imgs = []
-                                for i, (b, h) in enumerate(zip(tiles, hist)):
-                                    if not b:
-                                        continue
-                                    t = _cv.imdecode(np.frombuffer(b, np.uint8), _cv.IMREAD_COLOR)
-                                    if t is None:
-                                        continue
-                                    st = str(h.get("st", "")).replace("/", "of").replace(" ", "_")
+                                items = []                       # (image | None, label, is_skip)
+                                i = 0
+                                while i < len(hist):
+                                    h = hist[i]
                                     if h.get("skip"):
-                                        st = f"SKIP-{h['skip']}"     # gate that blocked this check
-                                    _cv.imwrite(_os.path.join(path, f"{i:02d}_{st}.png"), t)
-                                    imgs.append(t)
-                                if imgs:
-                                    th, tw = imgs[0].shape[:2]
-                                    cols = min(3, len(imgs))
-                                    rows = (len(imgs) + cols - 1) // cols
-                                    strip = np.zeros((rows * (th + 2) + 22, cols * (tw + 2), 3), np.uint8)
-                                    _cv.putText(strip, f"pid {pid}  EVICTED: {reason}  ({len(imgs)} checks, oldest->newest)",
-                                                (4, 15), _cv.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
-                                    for i, t in enumerate(imgs):
-                                        r, c = divmod(i, cols)
-                                        y = 22 + r * (th + 2); x = c * (tw + 2)
-                                        strip[y:y + th, x:x + tw] = t
-                                    _cv.imwrite(_os.path.join(path, "track.png"), strip)
+                                        j = i
+                                        while j + 1 < len(hist) and hist[j + 1].get("skip") == h["skip"]:
+                                            j += 1
+                                        span = f"check {i}" if j == i else f"checks {i}-{j}"
+                                        items.append((None, f"{span}: skipped ({h['skip']} gate)", True))
+                                        i = j + 1
+                                        continue
+                                    b = tiles[i]
+                                    t = _cv.imdecode(np.frombuffer(b, np.uint8), _cv.IMREAD_COLOR) if b else None
+                                    items.append((t, "", False))
+                                    i += 1
+                                imgs = [t for t, _, sk in items if not sk and t is not None]
+                                if not imgs:
+                                    continue
+                                th, tw = imgs[0].shape[:2]
+                                sk_h = 34                          # collapsed-skip tile height
+                                cols = 2
+                                # lay out: full tiles are (th) tall, skip tiles are (sk_h) tall; pack row-major
+                                rows_px = []; row = []; row_h = 0
+                                for t, lab, sk in items:
+                                    if sk:                              # skip note: its own thin full-width row
+                                        if row: rows_px.append((row, row_h)); row = []; row_h = 0
+                                        rows_px.append(([(t, lab, sk)], sk_h)); continue
+                                    if len(row) == cols:
+                                        rows_px.append((row, row_h)); row = []; row_h = 0
+                                    row.append((t, lab, sk)); row_h = th
+                                if row: rows_px.append((row, row_h))
+                                total_h = 26 + sum(rh + 4 for _, rh in rows_px)
+                                canvas = np.zeros((total_h, cols * (tw + 4), 3), np.uint8)
+                                _cv.putText(canvas, f"plane {pid}  mask {mask}   EVICTED: {reason}   "
+                                            f"({len(imgs)} judged checks, oldest -> newest)",
+                                            (4, 17), _cv.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 1)
+                                y = 26
+                                for row, rh in rows_px:
+                                    for c, (t, lab, sk) in enumerate(row):
+                                        x = c * (tw + 4)
+                                        if sk:
+                                            _cv.rectangle(canvas, (x, y), (cols * (tw + 4) - 1, y + sk_h - 1), (40, 40, 40), -1)
+                                            _cv.putText(canvas, lab, (x + 8, y + 22), _cv.FONT_HERSHEY_SIMPLEX,
+                                                        0.5, (170, 170, 170), 1)
+                                        elif t is not None:
+                                            canvas[y:y + th, x:x + tw] = t
+                                    y += rh + 4
+                                tag = "hard" if "HARD" in reason else "tug" if "TUG" in reason else "sweep" if "SWEEP" in reason else "other"
+                                _cv.imwrite(_os.path.join(path, f"mask{mask:02d}_plane{pid:03d}_{tag}.png"), canvas)
                         except Exception:
                             pass
                 _th.Thread(target=_writer, daemon=True).start()
             _os.makedirs(self.spill_debug_dir, exist_ok=True)
             hist_raw = list(self._spill_hist.get(tp.pid, []))
-            # snapshot NOW (the writer thread runs later): images out, everything else json-safe
             tiles = [h.get("_img") for h in hist_raw]
             hist = [{k: v for k, v in h.items() if k != "_img"} for h in hist_raw]
-            # per-check story: which checks set the median, which moved the tug, which one evicted
             for i, h in enumerate(hist):
                 st = str(h.get("st", ""))
                 h["check_no"] = i
-                h["role"] = ("calibrate" if st.startswith("CALIB") else
-                             "evict" if st.startswith("EVICT") else
-                             "tug" if st.startswith("TUG") else
-                             "skipped" if h.get("skip") else "check")
+                h["role"] = ("calibrate" if st.startswith("CALIB") else "evict" if st.startswith("EVICT")
+                             else "tug" if st.startswith("TUG") else "skipped" if h.get("skip") else "check")
+            judged = [h for h in hist if h["role"] != "skipped"]
             calib = [h["spill"] for h in hist if h["role"] == "calibrate"]
-            rec = {"pid": int(tp.pid), "mask": int(tp.mask),
-                   "evicted": True, "reason": reason,
-                   "final_check": len(hist) - 1,
-                   "median_from_checks": [h["check_no"] for h in hist if h["role"] == "calibrate"],
-                   "median_spill": (round(float(np.median(calib)), 4) if calib else None),
-                   "spill_base": float(tp.spill_base) if tp.spill_base_samples else None,
-                   "tug_rule": f"+1 when spill > base+{self.spill_tug_start:.2f} and rising, -1 when falling, "
-                               f"evict at {self.spill_persist}; hard evict at spill >= {self.spill_hard_frac:.2f}",
-                   "color": [int(c) for c in tp.color],
-                   "p0": [float(x) for x in np.asarray(tp.p0).reshape(3)],
-                   "p1": [float(x) for x in np.asarray(tp.p1).reshape(3)],
-                   "v0": float(tp.v0) if tp.v0 is not None else None,
-                   "v1": float(tp.v1) if tp.v1 is not None else None,
-                   "n_checks": len(hist), "history": hist, **extra}
-            tag = "hard" if "HARD" in reason else "tug" if "TUG" in reason else "sweep" if "SWEEP" in reason else "other"
+            last = hist[-1] if hist else {}
+            # one line per evicted plane, appended as they happen
             self._spill_evict_seq = getattr(self, "_spill_evict_seq", 0) + 1
-            folder = _os.path.join(self.spill_debug_dir,
-                                   f"{self._spill_evict_seq:03d}_pid{tp.pid}_{tag}")
-            self._spill_dump_q.put_nowait((("json", rec), _os.path.join(folder, "track.json")))
-            self._spill_dump_q.put_nowait((("track", tiles, reason, int(tp.pid), hist), folder))
+            line = (f"{self._spill_evict_seq:03d}  mask {tp.mask:2d}  plane {tp.pid:3d}  {reason:10s}  "
+                    f"checks {len(hist):3d} (judged {len(judged):2d}, skipped {len(hist)-len(judged):2d})  "
+                    f"baseline {(tp.spill_base*100 if tp.spill_base_samples else float('nan')):5.1f}% "
+                    f"from {len(calib)} samples  final spill {last.get('spill', 0)*100:5.1f}%  "
+                    f"dist {last.get('dist', 0):4.1f}m  nvis {last.get('nvis', 0):3d}  "
+                    f"trajectory " + " ".join(f"{h['spill']*100:.0f}" for h in judged) + "\n")
+            self._spill_dump_q.put_nowait((("append", line), _os.path.join(self.spill_debug_dir, "stats.txt")))
+            self._spill_dump_q.put_nowait((("track", tiles, reason, int(tp.pid), hist, int(tp.mask)), self.spill_debug_dir))
         except Exception:
             pass
 

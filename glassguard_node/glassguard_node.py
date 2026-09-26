@@ -730,6 +730,7 @@ class GlassGuardNode(Node):
         self._plane_tracker = bsp._PlaneTracker(self.args)
         # SPILL DEBUG: per-evicted-plane check-history JSONs, written by a daemon thread
         _sdd = str(self.declare_parameter("spill_debug_dir", "").value)
+        self._spill_debug_on = bool(_sdd)
         if _sdd:
             self._plane_tracker.spill_debug_dir = _sdd
             self.get_logger().info(f"[spill-debug] evicted-plane traces -> {_sdd}")
@@ -1014,7 +1015,7 @@ class GlassGuardNode(Node):
             # viz_full only: the pano, JPEG-compressed, so the MAPPING node (which owns the real
             # tracker) can draw the spill verdict on it. Off by default -- costs payload bytes.
             "bgr_jpg": (cv2.imencode(".jpg", _viz_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 80])[1].tobytes()
-                        if (getattr(self, "viz_full", False) and _viz_bgr is not None) else None),
+                        if ((getattr(self, "viz_full", False) or self._spill_debug_on) and _viz_bgr is not None) else None),
             "fid": int(self._save_counter),
             "viz": _viz_extra,                     # viz_full only (None otherwise)
             # mask id -> the SAME colour the rays/seeds/silhouette use, so plane patches and
@@ -1055,6 +1056,11 @@ class GlassGuardNode(Node):
         hdr.frame_id = payload["frame_id"]
         pose_tuple = payload["pose"]
         bsp._WORLD_SAVE_POSE = pose_tuple
+        # spill-debug: give the tracker the real panorama so each saved check draws on it
+        if self._spill_debug_on and payload.get("bgr_jpg"):
+            _dbg = cv2.imdecode(np.frombuffer(payload["bgr_jpg"], np.uint8), cv2.IMREAD_COLOR)
+            if _dbg is not None:
+                self._plane_tracker._dbg_bgr = _dbg
         if payload.get("mask_rgb"):
             self._viz_mask_rgb = {int(k): v for k, v in payload["mask_rgb"].items()}
         clench_by_mask = payload["clench_by_mask"]
@@ -2216,7 +2222,7 @@ class GlassGuardNode(Node):
             # (which owns the tracker) and skip the local tracker update entirely.
             self._publish_geom(cloud_msg.header, clench_by_mask, seed_records, mask_ray_records,
                                floor_gate_xyz, pc_xyz, H_orig, W_orig, big_masks_full,
-                               _viz_bgr=(bgr if getattr(self, "viz_full", False) else None),
+                               _viz_bgr=(bgr if (getattr(self, "viz_full", False) or self._spill_debug_on) else None),
                                _viz_extra=(self._viz_pack_extra(big_idx, big_masks_full, small_idx,
                                                                 small_masks_full, horiz_by_mask)
                                            if getattr(self, "viz_full", False) else None))
