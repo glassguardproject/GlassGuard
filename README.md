@@ -15,7 +15,7 @@ Navigation* (under review). Project page: https://glassguardproject.github.io/
 | `ros/extrinsic_latency_calib/` | The LiDAR/camera provider node (`glassGuardProvider`, launched by `glassguard.launch`) (registered-scan stack, de-rotation with the exact cloud pose, `/glassguard/cloud`). |
 | `tools/` | Recording (`capture_input_node.py`), evaluation (`eval_occupancy.py`, `eval_abl_scene.sh`), batch experiment drivers (`run_main_rerecord.sh`, `run_pin_ablation.sh`), demo-video capture (`record_viz.sh`, `encode_viz.sh`, `pick_regions.py`), protection maps. |
 | `slim_sam3/` | Slim SAM3: confidence-guided Taylor pruning, distillation fine-tune, loader, VRAM benchmark, and the pruned-channel metadata (`mlp_pruned_meta.json`). Weights are not included (2.7 GB); see below. |
-| `rviz/` | `glassguard_live.rviz`: the default live view (registered scan, robot pose, camera, and every GlassGuard topic; the stack's planner/terrain displays are an optional group, off by default). `glassguard_demo.rviz`: the full-visual demo layout (`VIZ_FULL=true`). |
+| `rviz/` | `glassguard_live.rviz`: the default live view (registered scan, robot pose, camera, and the GlassGuard topic; the stack's planner/terrain displays are an optional group, off by default). `glassguard_demo.rviz`: the full-visual demo layout (`VIZ_FULL=true`). |
 
 ## Paths
 
@@ -90,4 +90,7 @@ public SAM 3 release.
 
 All thresholds are set in `run_glassguard.sh` and were frozen across the experiments
 (`PIPELINE=true`, `PAR_CHECK=true`, `SPILL_VIS_MIN=0.5`, `SPILL_BASE_N=2`, `SPILL_PERSIST=2`,
-`SPILL_HARD=0.55`, `RANGE_M=10`, or `20` for the two large outdoor scenes).
+`SPILL_HARD=0.55`, `RANGE_M=10`, or `20` for the two large outdoor scenes). The planner is fed
+from the current map on `/glassguard/global_planes`, the map the paper evaluates. `FINAL_MAP=true`
+additionally keeps a looser overview tracker (spill eviction only within `FINAL_SPILL_DIST`) on
+`/glassguard/final_global_planes` and feeds the planner from that instead; it is off by default.

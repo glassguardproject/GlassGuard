@@ -94,7 +94,9 @@ RECORD_PLACED_INPUT=false  # ALSO dump the raw algorithm input (cloud PLY + rgb 
                        # on every plane-PLACEMENT frame -> canonical_run/placed_input. With many
                        # placements this is near per-frame recording -- keep OFF unless you need
                        # frame-exact replays; annotation/eval only needs the light artifacts above
-FINAL_MAP=true         # publish a 2nd looser OVERVIEW map (/glassguard/final_global_planes)
+FINAL_MAP=${FINAL_MAP:-false}   # OFF: the planner is fed from the current map, the one the paper evaluates.
+                       # true = ALSO keep a 2nd, looser overview tracker (spill-evicts only within
+                       # FINAL_SPILL_DIST) and feed the planner from it instead.
 FINAL_SPILL_DIST=2.0   # overview map only spill-evicts within this radius (m); farther planes persist
 FINAL_SPILL_THRESH=0.4 # overview map spill frac to count as a hit (higher = more tolerant than current)
 SAVE_REPROJECT=false    # save per-frame panel: topdown(evicted red) | rgb+reprojection(spill)
