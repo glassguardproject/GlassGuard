@@ -119,6 +119,13 @@ FRONTIER_PLANNER=${FRONTIER_PLANNER:-false}  # true -> REPLACE TARE with the sim
 LAUNCH_PROVIDER=true
 LAUNCH_REPUBLISH=true
 PLAY_BAG=true
+# REAL_ROBOT=true: run on the robot instead of a bag. Starts the stack's real-robot launch
+# (live LiDAR/IMU drivers) and the camera driver named by CAMERA_LAUNCH, plays no bag, and
+# skips the compressed->raw republish (a camera driver publishes /camera/image itself).
+REAL_ROBOT=${REAL_ROBOT:-false}
+CAMERA_LAUNCH=${CAMERA_LAUNCH:-}     # e.g. "receive_theta receive_theta_ai_computer.launch"
+if [ "$REAL_ROBOT" = "true" ]; then PLAY_BAG=false; LAUNCH_REPUBLISH=false; fi
+STACK_LAUNCH=$([ "$REAL_ROBOT" = "true" ] && echo system_real_robot || echo system_bagfile)
 # ${GG_DATA_ROOT:-$HOME/glassguard_data}/bldgC_office
 
 
@@ -182,7 +189,7 @@ cleanup() { echo; echo "[launcher] Ctrl-C -> shutting everything down..."
               sleep 2
             fi
             kill 0 2>/dev/null
-            pkill -f "system_bagfile.launch" 2>/dev/null
+            pkill -f "system_bagfile.launch" 2>/dev/null; pkill -f "system_real_robot.launch" 2>/dev/null
             pkill -f "system_bagfile_with_exploration_planner.launc[h]" 2>/dev/null
             pkill -f "tare_planner_nod[e]"  2>/dev/null
             pkill -f "glassguard.launch"  2>/dev/null
@@ -280,7 +287,7 @@ deferred_start() {
       # FULL-TEST visual + TARE topics: the vehicle_simulator rviz with an extra unchecked
       # "TARE" group (LocalPath / LocalPlanningHorizon / ExploredAreas) -- tick to show.
       ( cd "$STACK_DIR" && source ./install/setup.bash
-        ros2 launch vehicle_simulator system_bagfile_with_exploration_planner.launch & sleep 1
+        ros2 launch vehicle_simulator ${STACK_LAUNCH}_with_exploration_planner.launch & sleep 1
         if [ "${VIZ_FULL:-false}" = "true" ]; then     # demo layout: the 4 pipeline-stage images
           exec ros2 run rviz2 rviz2 -d "$GG_ROOT/rviz/glassguard_demo.rviz"
         else
@@ -366,22 +373,22 @@ deferred_start() {
         ) &
       fi
     else
-      echo "[launcher] starting autonomy stack (system_bagfile.sh)..."
+      echo "[launcher] starting autonomy stack (${STACK_LAUNCH}.sh)..."
       # system_bagfile.sh hardcodes vehicle_simulator.rviz, so for VIZ_FULL we inline the same
       # two steps here and point RViz at the demo layout instead (the stack script is untouched).
       if [ "${VIZ_FULL:-false}" = "true" ]; then
         ( cd "$STACK_DIR" && source ./install/setup.bash
-          ros2 launch vehicle_simulator system_bagfile.launch & sleep 1
+          ros2 launch vehicle_simulator ${STACK_LAUNCH}.launch & sleep 1
           exec ros2 run rviz2 rviz2 -d "$GG_ROOT/rviz/glassguard_demo.rviz" ) &
       elif [ "${RVIZ_FULLSCREEN:-false}" = "true" ]; then
         # standard stack RViz layout, but fullscreen so a screen recorder captures only RViz
         ( cd "$STACK_DIR" && source ./install/setup.bash
-          ros2 launch vehicle_simulator system_bagfile.launch & sleep 1
+          ros2 launch vehicle_simulator ${STACK_LAUNCH}.launch & sleep 1
           exec ros2 run rviz2 rviz2 --fullscreen -d src/base_autonomy/vehicle_simulator/rviz/vehicle_simulator.rviz ) &
       elif [ "${HEADLESS:-false}" = "true" ]; then
         # HEADLESS=true: same stack launch as system_bagfile.sh, without opening RViz
         ( cd "$STACK_DIR" && source ./install/setup.bash
-          exec ros2 launch vehicle_simulator system_bagfile.launch ) &
+          exec ros2 launch vehicle_simulator ${STACK_LAUNCH}.launch ) &
       else
         # Default: the stack's launch WITHOUT its own RViz, plus this repo's live layout
         # (scan, pose, camera, and every GlassGuard topic; the stack's planner/terrain
@@ -389,15 +396,21 @@ deferred_start() {
         # stack's own RViz config instead (its glass displays must then match this repo's
         # topic names).
         if [ "${RVIZ_STACK:-false}" = "true" ]; then
-          ( cd "$STACK_DIR" && ./system_bagfile.sh ) &
+          ( cd "$STACK_DIR" && ./${STACK_LAUNCH}.sh ) &
         else
           ( cd "$STACK_DIR" && source ./install/setup.bash
-            ros2 launch vehicle_simulator system_bagfile.launch & sleep 1
+            ros2 launch vehicle_simulator ${STACK_LAUNCH}.launch & sleep 1
             exec ros2 run rviz2 rviz2 -d "$GG_ROOT/rviz/glassguard_live.rviz" ) &
         fi
       fi
     fi
     sleep 6
+  fi
+  if [ "$REAL_ROBOT" = "true" ] && [ -n "$CAMERA_LAUNCH" ]; then
+    echo "[launcher] starting camera driver ($CAMERA_LAUNCH)..."
+    ( source "$ROS_SETUP"; [ -f "$CAM_INSTALL" ] && source "$CAM_INSTALL"
+      exec ros2 launch $CAMERA_LAUNCH ) &
+    sleep 2
   fi
   if [ "$LAUNCH_PROVIDER" = "true" ]; then
     echo "[launcher] starting glassguard provider..."

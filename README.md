@@ -86,6 +86,14 @@ The Slim-2816 student checkpoint and the cached text embedding are distributed s
 `slim_sam3/prompt_features/`. The pruning recipe in `slim_sam3/` reproduces the student from the
 public SAM 3 release.
 
+## Running on the robot
+
+`REAL_ROBOT=true` runs live instead of replaying a bag: the launcher starts the stack's
+`system_real_robot` launch (its LiDAR/IMU drivers), plays no bag, skips the compressed-to-raw
+image republish, and starts the camera driver given by `CAMERA_LAUNCH` (a `ros2 launch`
+argument pair, e.g. `CAMERA_LAUNCH="receive_theta receive_theta_ai_computer.launch"`). The
+camera driver must publish `/camera/image`; everything else is unchanged.
+
 ## Multi-view eviction debug
 
 `SPILL_DEBUG_DIR=<dir>` records every plane evicted by multi-view verification, one folder per
