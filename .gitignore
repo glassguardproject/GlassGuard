@@ -1,3 +1,9 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Local model weights (symlinks or real files); never commit - they are large
+# and any symlink target would leak a local absolute path.
+slim_sam3/checkpoints/*.pt
+slim_sam3/checkpoints/student_final.pt
+slim_sam3/prompt_features/

@@ -42,8 +42,8 @@ COV_TH=0.1           # min seed-coverage frac to place a plane  (node: min_cov; 
 EMPTY_CACHE_EVERY=0  # torch empty_cache every N frames to cap VRAM (0=keep-warm/fast; 1=~1GB, slower)
 MASK_CLAMP=false      # trim every placed plane to the 2D glass mask (all RViz plane topics show it)
 DOORWAY_GATE=false    # OFF: no "open doorway" decode/lock/skip (the seed-vs-floor green-trim handles doorways)
-FLOOR_CHECK=true      # global-map floor check: OFF = no floor accumulation / green cells / green-trim
-TERRAIN_FLOOR=true    # floor evidence from the autonomy stack's /terrain_map (intensity<=0.1m = ground)
+FLOOR_CHECK=${FLOOR_CHECK:-true}      # global-map floor check: OFF = no floor accumulation / green cells / green-trim
+TERRAIN_FLOOR=${TERRAIN_FLOOR:-true}    # floor evidence from the autonomy stack's /terrain_map (intensity<=0.1m = ground)
                       # instead of the SAM3 floor decode -> saves ~0.19s/frame; false = SAM3 floor
 GROUNDING_CELL=6      # seed grid cell size (px): finer = more/tighter contact seeds (10=old, 6=finer)
 SEED_GRID_RING=true   # seeds = ring of grid cells JUST OUTSIDE the mask (no pixel dilate/cut)
@@ -486,6 +486,8 @@ echo "[launcher] method=$METHOD align=$USE_ALIGN da2=$USE_DA2 par_check=$PAR_CHE
 source "$ROS_SETUP"; [ -f "$CAM_INSTALL" ] && source "$CAM_INSTALL"
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True   # trim reserved pool / avoid fragmentation OOM
 launch_node() {  # $1 = node .py, $2 = extra --ros-args (role); PIPELINE reuses this verbatim
+# slim_sam3/ holds load_slim_sam3.py, imported by bare name from glass_frame_ring.build_sam3
+export PYTHONPATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/slim_sam3:$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)${PYTHONPATH:+:$PYTHONPATH}"
 conda run -n sam3 --no-capture-output python "$1" --ros-args $2 \
   -p pinhole_cfg:="'$PINHOLE_CFG'" \
   -p gt_planes_json:="'$GT_JSON'" \
