@@ -15,7 +15,7 @@ Navigation* (under review). Project page: https://glassguardproject.github.io/
 | `ros/extrinsic_latency_calib/` | The LiDAR/camera provider node (`glassGuardProvider`, launched by `glassguard.launch`) (registered-scan stack, de-rotation with the exact cloud pose, `/glassguard/cloud`). |
 | `tools/` | Recording (`capture_input_node.py`), evaluation (`eval_occupancy.py`, `eval_abl_scene.sh`), batch experiment drivers (`run_main_rerecord.sh`, `run_pin_ablation.sh`), demo-video capture (`record_viz.sh`, `encode_viz.sh`, `pick_regions.py`), protection maps. |
 | `slim_sam3/` | Slim SAM3: confidence-guided Taylor pruning, distillation fine-tune, loader, VRAM benchmark, and the pruned-channel metadata (`mlp_pruned_meta.json`). Weights are not included (2.7 GB); see below. |
-| `rviz/` | RViz layout for the full-visual demo. |
+| `rviz/` | `glassguard_live.rviz`: the default live view (registered scan, robot pose, camera, and every GlassGuard topic; the stack's planner/terrain displays are an optional group, off by default). `glassguard_demo.rviz`: the full-visual demo layout (`VIZ_FULL=true`). |
 
 ## Paths
 

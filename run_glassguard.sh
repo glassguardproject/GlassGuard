@@ -381,7 +381,18 @@ deferred_start() {
         ( cd "$STACK_DIR" && source ./install/setup.bash
           exec ros2 launch vehicle_simulator system_bagfile.launch ) &
       else
-        ( cd "$STACK_DIR" && ./system_bagfile.sh ) &
+        # Default: the stack's launch WITHOUT its own RViz, plus this repo's live layout
+        # (scan, pose, camera, and every GlassGuard topic; the stack's planner/terrain
+        # displays are an optional group, off by default). RVIZ_STACK=true restores the
+        # stack's own RViz config instead (its glass displays must then match this repo's
+        # topic names).
+        if [ "${RVIZ_STACK:-false}" = "true" ]; then
+          ( cd "$STACK_DIR" && ./system_bagfile.sh ) &
+        else
+          ( cd "$STACK_DIR" && source ./install/setup.bash
+            ros2 launch vehicle_simulator system_bagfile.launch & sleep 1
+            exec ros2 run rviz2 rviz2 -d "$GG_ROOT/rviz/glassguard_live.rviz" ) &
+        fi
       fi
     fi
     sleep 6
