@@ -38,8 +38,9 @@
 | RFENet (zero-shot) | 0.244 | 0.292 | 70.8% |
 
 Slim-2816 instance level (conf 0.5): precision 0.921 / recall 0.911 / 1.55 FP/img.
-Not included (kept on the cluster, ask/copy if needed): original sam3.pt (3.3 GB),
-slim 2816/1752 checkpoints (`sam3/pruning_algorithms/finetune_full32_mlp_*/
-student_best.pt` + `mlp_pruned_meta.json`), MonoGlass3D `mono_g3d_nn.pth`.
+Not included here: the original `sam3.pt` (3.3 GB, from the public SAM 3 release) and
+MonoGlass3D `mono_g3d_nn.pth` (from its authors' release). The Slim-2816 student used by
+GlassGuard is published at
+[glassguard1/glassguard-slim-sam3](https://huggingface.co/glassguard1/glassguard-slim-sam3).
 The slim pruning CONFIGS are small and remain documented in code/README.md.
 Generated 2026-08-11.

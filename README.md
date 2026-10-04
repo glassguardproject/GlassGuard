@@ -81,10 +81,17 @@ ROS 2 / PyTorch stack: `torch`, `torchvision`, `numpy`, `opencv-python`, `pillow
 
 ## Weights
 
-The Slim-2816 student checkpoint and the cached text embedding are distributed separately
-(too large for this repository); place them under `slim_sam3/checkpoints/` and
-`slim_sam3/prompt_features/`. The pruning recipe in `slim_sam3/` reproduces the student from the
-public SAM 3 release.
+The Slim-2816 student checkpoint and the cached text embedding are too large for this
+repository and are published separately at
+[glassguard1/glassguard-slim-sam3](https://huggingface.co/glassguard1/glassguard-slim-sam3):
+
+```bash
+hf download glassguard1/glassguard-slim-sam3 --local-dir slim_sam3
+```
+
+That lands `checkpoints/student_final.pt`, `checkpoints/mlp_pruned_meta.json` and
+`prompt_features/window_glass.pt` in the layout the code expects. The pruning recipe in
+`slim_sam3/` reproduces the student from the public SAM 3 release.
 
 ## Running on the robot
 
